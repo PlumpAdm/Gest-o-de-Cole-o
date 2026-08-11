@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gestão de Coleção</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f7f6f3;color:#1a1a1a;min-height:100vh}
+:root{--bg:#ffffff;--bg2:#f7f6f3;--bg3:#eeecea;--border:#e0deda;--text:#1a1a1a;--text2:#6b6762;--text3:#a09d9a;--blue:#185FA5;--bluebg:#E6F1FB;--green:#3B6D11;--greenbg:#EAF3DE;--amber:#854F0B;--amberbg:#FAEEDA;--red:#A32D2D;--redbg:#FCEBEB;--gray:#5F5E5A;--graybg:#F1EFE8;--purple:#534AB7;--purplebg:#EEEDFE}
+.app{max-width:820px;margin:0 auto;padding-bottom:40px}
+.nav{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;z-index:100;box-shadow:0 1px 0 var(--border)}
+.nav-title{font-size:14px;font-weight:600;color:var(--text);padding:13px 0;margin-right:auto;letter-spacing:-0.01em}
+.nav-tab{background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;padding:13px 14px;font-size:13px;font-family:inherit;transition:color .15s;position:relative}
+.nav-tab.active{font-weight:600;color:var(--text);border-bottom-color:var(--text)}
+.nav-tab:not(.active){color:var(--text2)}
+.badge-dot{position:absolute;top:7px;right:2px;background:#e24b4a;color:#fff;border-radius:10px;font-size:9px;padding:1px 5px;font-weight:700;line-height:1.5}
+.content{padding:16px}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.met-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.met{background:var(--bg2);border-radius:9px;padding:12px 14px}
+.met-label{font-size:11px;color:var(--text2);margin-bottom:4px;letter-spacing:.02em}
+.met-value{font-size:19px;font-weight:600;color:var(--text);line-height:1.2}
+.met-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.sec-title{font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+.btn-primary{background:var(--text);color:var(--bg);border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit}
+.btn-secondary{background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-danger{background:none;color:var(--red);border:1px solid #F0959580;border-radius:8px;padding:7px 13px;font-size:12px;cursor:pointer;font-family:inherit}
+.input{width:100%;padding:8px 11px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.input:focus{border-color:#888}
+.label{font-size:11px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px}
+.chip{font-size:11px;padding:3px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
+.chip-gray{background:var(--bg2);border:1px solid var(--border);color:var(--text2)}
+.chip-blue{background:var(--bluebg);color:var(--blue);font-weight:500}
+.insight{display:flex;gap:10px;padding:10px 13px;border-radius:9px;margin-bottom:8px}
+.insight-icon{font-size:14px;font-weight:700;flex-shrink:0;line-height:1.5}
+.insight-text{font-size:12px;line-height:1.65;color:var(--text)}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bar-label{font-size:12px;color:var(--text2);width:110px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;background:var(--bg2);border-radius:4px;height:15px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;min-width:0}
+.bar-qty{width:28px;text-align:right;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0}
+.status-badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-block}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 8px;font-weight:500;color:var(--text2);font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 8px;color:var(--text);border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+.upload-zone{border:1.5px dashed var(--border);border-radius:12px;padding:24px 16px;text-align:center;cursor:pointer;background:var(--bg2);margin-bottom:12px;transition:all .15s}
+.upload-zone:hover,.upload-zone.drag{border-color:#378ADD;background:var(--bluebg)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.alert-amber{background:var(--amberbg);border:1px solid #FAC775;border-radius:10px;padding:12px 16px;margin-bottom:10px}
+.alert-blue{background:var(--bluebg);border:1px solid #B5D4F4;border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.sku-card{background:var(--bg2);border-radius:9px;padding:10px 11px;border:1px solid var(--border)}
+.sku-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px}
+.no-data{text-align:center;padding:32px;color:var(--text2);font-size:13px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.reasoning-box{margin-top:14px;padding:12px 14px;background:var(--bg2);border-radius:8px;font-size:11px;color:var(--text2);line-height:1.7}
+.luc-rank{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;flex-shrink:0}
+.ciclo-phase{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700}
+.ciclo-arrow{font-size:18px;font-weight:700}
+.ciclo-period-box{background:var(--bg2);border-radius:10px;padding:14px 16px;flex:1;min-width:140px}
+.ciclo-period-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.ciclo-period-val{font-size:20px;font-weight:700;color:var(--text);margin-bottom:2px}
+.ciclo-period-sub{font-size:11px;color:var(--text2)}
+.ciclo-sku-row{display:grid;grid-template-columns:150px 70px 70px 80px 1fr 56px;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.ciclo-sku-row:last-child{border-bottom:none}
+.var-chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;text-align:center;white-space:nowrap}
+.luc-bar-wrap{display:grid;grid-template-columns:140px 1fr 56px;align-items:center;gap:10px;margin-bottom:9px}
+.luc-bar-label{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.luc-bar-val{font-size:12px;font-weight:600;text-align:right;white-space:nowrap}
+.tier-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.03em}
+.tier-A{background:#EAF3DE;color:#3B6D11}
+.tier-B{background:#E6F1FB;color:#185FA5}
+.tier-C{background:#FAEEDA;color:#854F0B}
+.tier-D{background:#FCEBEB;color:#A32D2D}
+.lote-model-name{font-size:14px;font-weight:600;color:var(--text)}
+.lote-cost-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.lote-total-bar{background:var(--bg2);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:8px}
+.lote-grand-total{font-size:22px;font-weight:700;color:var(--text)}
+.historico-item{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.historico-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px}
+.status-entregue{background:#EAF3DE;color:#3B6D11}
+.status-andamento{background:#E6F1FB;color:#185FA5}
+.status-cancelado{background:#F1EFE8;color:#5F5E5A}
+.cost-input{width:100px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;text-align:right}
+.cost-input:focus{border-color:#888}
+@media(max-width:600px){.two-col{grid-template-columns:1fr}.met-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {useState,useEffect,useRef}=React;
+
+// ── Helpers ──────────────────────────────────────────────────────────
+const LS_KEY='gc_models_v3';
+function pNum(v){if(typeof v==='number')return v;return parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0;}
+function pDate(s){if(!s)return null;const p=String(s).split('/');if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]);return new Date(s);}
+function pDesc(d){const s=String(d||'');return{cor:s.match(/Cor:([^;,]+)/)?.[1]?.trim().toUpperCase()||null,tamanho:s.match(/Tamanho:([^;,\s]+)/)?.[1]?.trim().toUpperCase()||null};}
+function fBRL(v){return'R$'+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+
+function saveLS(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){}}
+function loadLS(key,def){try{const v=localStorage.getItem(key);return v?JSON.parse(v):def;}catch(e){return def;}}
+
+async function readXLS(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}));}catch(e){rej(e);}};
+    r.onerror=rej;r.readAsArrayBuffer(file);
+  });
+}
+
+// ── Upseller Format Support ─────────────────────────────────────────
+function detectFormat(rows){
+  if(!rows||!rows.length)return'unknown';
+  const keys=Object.keys(rows[0]);
+  if(keys.some(k=>k==='Variantes')||keys.some(k=>k==='Unidades Vendidas'))return'upseller';
+  if(keys.some(k=>k==='Descrição')||keys.some(k=>k==='Quantidade'))return'mercadolivre';
+  return'unknown';
+}
+function parseVariantes(variantes){
+  const sizeRe=/^(PP|P|M|GG|XGG?|G[0-9]*|[0-9]{2,3})$/i;
+  const parts=String(variantes||'').split(',').map(s=>s.trim()).filter(Boolean);
+  let cor=null,tamanho=null;
+  for(const part of parts){if(sizeRe.test(part))tamanho=part.toUpperCase();else cor=part.toUpperCase();}
+  return{cor,tamanho};
+}
+function extractPeriodFromFilename(filename){
+  if(!filename)return null;
+  const m=filename.match(/(\d{8})-(\d{8})/);
+  if(!m)return null;
+  const p=s=>new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8));
+  return{minDate:p(m[1]),maxDate:p(m[2])};
+}
+function normalizeSku(v){return String(v||'').replace(/^0+/,'');}
+function runAnalysisUpseller(rows,model,filename){
+  const kw=(model.keyword||model.name||'').toUpperCase();
+  const skuCode=normalizeSku(model.skuCode||'');
+  const filtered=rows.filter(r=>{
+    const produto=String(r['Produtos']||'').toUpperCase();
+    const skuPrincipal=normalizeSku(r['SKU Principal']||'');
+    const sku=normalizeSku(r['SKU']||'');
+    if(skuCode)return skuPrincipal===skuCode||sku===skuCode||sku.startsWith(skuCode)||skuPrincipal.startsWith(skuCode);
+    return kw&&produto.includes(kw);
+  });
+  if(!filtered.length)return null;
+  let days=30,minDate=new Date(Date.now()-30*86400000),maxDate=new Date();
+  const period=extractPeriodFromFilename(filename);
+  if(period){minDate=period.minDate;maxDate=period.maxDate;days=Math.max(1,Math.round((maxDate-minDate)/86400000)+1);}
+  const sMap={},rMap={},cMap={},tMap={};
+  let totalU=0,totalR=0;
+  for(const row of filtered){
+    const{cor,tamanho}=parseVariantes(row['Variantes']);
+    const qty=pNum(row['Unidades Vendidas']);
+    if(!cor||!tamanho||qty<=0)continue;
+    const k=`${cor}||${tamanho}`;
+    const rec=pNum(row['Pagamentos Recebidos']);
+    sMap[k]=(sMap[k]||0)+qty;rMap[k]=(rMap[k]||0)+rec;
+    cMap[cor]=(cMap[cor]||0)+qty;tMap[tamanho]=(tMap[tamanho]||0)+qty;
+    totalU+=qty;totalR+=rec;
+  }
+  if(!totalU)return null;
+  const cores=Object.entries(cMap).sort((a,b)=>b[1]-a[1]);
+  const tamanhos=Object.entries(tMap).sort((a,b)=>b[1]-a[1]);
+  const midTs=minDate.getTime()+(maxDate.getTime()-minDate.getTime())/2;
+  const p1Days=Math.ceil(days/2)||1,p2Days=Math.floor(days/2)||1;
+  const skuTable=Object.entries(sMap).map(([k,qty])=>{
+    const[cor,tamanho]=k.split('||');
+    const rec=rMap[k]||0,ticketUnit=qty>0?rec/qty:0,velDay=qty/days;
+    const p1Qty=Math.ceil(qty/2),p2Qty=Math.floor(qty/2);
+    return{cor,tamanho,qty,pct:totalU>0?qty/totalU*100:0,velDay,activeDays:days,isNew:false,
+      rec,luc:0,fre:0,ticketUnit,lucUnit:0,freUnit:0,margemML:0,
+      p1Qty,p2Qty,vel1:p1Qty/p1Days,vel2:p2Qty/p2Days,velVar:0};
+  }).sort((a,b)=>b.qty-a.qty);
+  const p1Map=Object.fromEntries(Object.entries(sMap).map(([k,v])=>[k,Math.ceil(v/2)]));
+  const p2Map=Object.fromEntries(Object.entries(sMap).map(([k,v])=>[k,Math.floor(v/2)]));
+  const vel1Total=(totalU/2)/p1Days,vel2Total=(totalU/2)/p2Days;
+  return{fmt:'upseller',days,minDate:minDate.toISOString(),maxDate:maxDate.toISOString(),
+    midDate:new Date(midTs).toISOString(),p1Days,p2Days,
+    totalU,totalR,totalL:0,totalF:0,
+    avgTicket:totalU>0?totalR/totalU:0,dailyAvg:totalU/days,
+    p1TotalU:Math.ceil(totalU/2),p2TotalU:Math.floor(totalU/2),
+    vel1Total,vel2Total,velVarTotal:0,
+    sMap,rMap,lMap:{},fMap:{},p1Map,p2Map,cores,tamanhos,skuTable};
+}
+
+function runAnalysisMercadoLivre(rows,model){
+  const kw=(model.keyword||model.name||'').toUpperCase();
+  const skuCode=(model.skuCode||'').trim();
+  const filtered=rows.filter(r=>{
+    const desc=String(r['Descrição']||'').toUpperCase();
+    const sku=String(r['Código do produto pai']||'').trim();
+    const sit=String(r['Situação']||'').toLowerCase();
+    if(sit&&sit!=='atendido')return false;
+    if(skuCode&&sku===skuCode)return true;
+    if(!skuCode&&kw&&desc.includes(kw))return true;
+    return false;
+  });
+  if(!filtered.length)return null;
+
+  const allDates=filtered.map(r=>pDate(r['Data'])).filter(Boolean).map(d=>d.getTime());
+  const globalMin=Math.min(...allDates),globalMax=Math.max(...allDates);
+  const minDate=new Date(globalMin),maxDate=new Date(globalMax);
+  const days=Math.max(1,Math.round((globalMax-globalMin)/86400000)+1);
+  const midTs=globalMin+(globalMax-globalMin)/2;
+
+  // Per-SKU accumulators
+  const sMap={},rMap={},lMap={},fMap={},cMap={},tMap={};
+  const p1Map={},p2Map={};
+  // Per-SKU date tracking for active-days calculation
+  const skuMinDate={},skuMaxDate={};
+  let totalU=0,totalR=0,totalL=0,totalF=0;
+  const p1Dates=[],p2Dates=[];
+
+  for(const row of filtered){
+    const{cor,tamanho}=pDesc(row['Descrição']);
+    const qty=pNum(row['Quantidade']);
+    if(!cor||!tamanho||qty<=0)continue;
+    const k=`${cor}||${tamanho}`;
+    const rec=pNum(row['Valor total']);
+    const luc=pNum(row['Lucro']);
+    const fre=pNum(row['Custo de Frete']||row['Frete']||0);
+    const rowDate=pDate(row['Data']);
+    const rowTs=rowDate?rowDate.getTime():globalMax;
+
+    sMap[k]=(sMap[k]||0)+qty;
+    rMap[k]=(rMap[k]||0)+rec;
+    lMap[k]=(lMap[k]||0)+luc;
+    fMap[k]=(fMap[k]||0)+fre;
+    cMap[cor]=(cMap[cor]||0)+qty;
+    tMap[tamanho]=(tMap[tamanho]||0)+qty;
+    totalU+=qty;totalR+=rec;totalL+=luc;totalF+=fre;
+
+    // Track per-SKU first/last sale date
+    if(!skuMinDate[k]||rowTs<skuMinDate[k])skuMinDate[k]=rowTs;
+    if(!skuMaxDate[k]||rowTs>skuMaxDate[k])skuMaxDate[k]=rowTs;
+
+    if(rowTs<=midTs){p1Map[k]=(p1Map[k]||0)+qty;p1Dates.push(rowTs);}
+    else{p2Map[k]=(p2Map[k]||0)+qty;p2Dates.push(rowTs);}
+  }
+
+  let p1Days=0,p2Days=0;
+  if(p1Dates.length){const mn=Math.min(...p1Dates),mx=Math.max(...p1Dates);p1Days=Math.max(1,Math.round((mx-mn)/86400000)+1);}
+  else p1Days=Math.ceil(days/2);
+  if(p2Dates.length){const mn=Math.min(...p2Dates),mx=Math.max(...p2Dates);p2Days=Math.max(1,Math.round((mx-mn)/86400000)+1);}
+  else p2Days=Math.ceil(days/2);
+
+  // NEW_THRESHOLD: SKU is "new" if first sale is in the last 21 days of the period
+  const newThresholdTs=globalMax-(21*86400000);
+
+  const cores=Object.entries(cMap).sort((a,b)=>b[1]-a[1]);
+  const tamanhos=Object.entries(tMap).sort((a,b)=>b[1]-a[1]);
+
+  const skuTable=Object.entries(sMap).map(([k,qty])=>{
+    const[cor,tamanho]=k.split('||');
+    const rec=rMap[k]||0,luc=lMap[k]||0,fre=fMap[k]||0;
+    const ticketUnit=qty>0?rec/qty:0;
+    const lucUnit=qty>0?luc/qty:0;
+    const freUnit=qty>0?fre/qty:0;
+    const margemML=rec>0?luc/rec*100:0;
+
+    // Active days: from SKU's first sale to end of period
+    const skuFirst=skuMinDate[k]||globalMin;
+    const activeDays=Math.max(1,Math.round((globalMax-skuFirst)/86400000)+1);
+    const isNew=skuFirst>newThresholdTs;
+
+    // Velocity: use activeDays (accurate for new SKUs, same as days for established ones)
+    const velDay=qty/activeDays;
+
+    const vel1=(p1Map[k]||0)/p1Days;
+    const vel2=(p2Map[k]||0)/p2Days;
+    const velVar=vel1>0?(vel2-vel1)/vel1*100:vel2>0?100:0;
+
+    return{cor,tamanho,qty,pct:totalU>0?qty/totalU*100:0,
+      velDay,activeDays,isNew,
+      rec,luc,fre,ticketUnit,lucUnit,freUnit,margemML,
+      p1Qty:p1Map[k]||0,p2Qty:p2Map[k]||0,vel1,vel2,velVar};
+  }).sort((a,b)=>b.qty-a.qty);
+
+  const p1TotalU=Object.values(p1Map).reduce((s,v)=>s+v,0);
+  const p2TotalU=Object.values(p2Map).reduce((s,v)=>s+v,0);
+  const vel1Total=p1TotalU/p1Days,vel2Total=p2TotalU/p2Days;
+  const velVarTotal=vel1Total>0?(vel2Total-vel1Total)/vel1Total*100:vel2Total>0?100:0;
+
+  return{days,minDate:minDate.toISOString(),maxDate:maxDate.toISOString(),
+    midDate:new Date(midTs).toISOString(),p1Days,p2Days,
+    totalU,totalR,totalL,totalF,
+    avgTicket:totalU>0?totalR/totalU:0,dailyAvg:totalU/days,
+    p1TotalU,p2TotalU,vel1Total,vel2Total,velVarTotal,
+    sMap,rMap,lMap,fMap,p1Map,p2Map,cores,tamanhos,skuTable};
+}
+
+function buildRep(analysis,stock,model){
+  if(!analysis)return[];
+  const{skuTable,days}=analysis;
+  const ld=model.leadTimeDays||15,sd=model.safetyDays||7;
+
+  // Build a velocity map from skuTable (uses activeDays-corrected velocity)
+  const velMap={};
+  (skuTable||[]).forEach(s=>{velMap[`${s.cor}||${s.tamanho}`]=s;});
+
+  return(model.cores||[]).flatMap(cor=>(model.tamanhos||[]).map(tam=>{
+    const k=`${cor}||${tam}`;
+    const skuData=velMap[k];
+    const vel=skuData?skuData.velDay:0;
+    const isNew=skuData?skuData.isNew:false;
+    const activeDays=skuData?skuData.activeDays:days;
+    const curr=+(stock[k]||0);
+
+    // Coverage: use model setting; new SKUs get half (conservative)
+    const baseCov=model.coverageDays||30;
+    const covDays=isNew?Math.max(15,Math.ceil(baseCov/2)):baseCov;
+    const dLeft=vel>0?curr/vel:Infinity;
+    const rop=vel*(ld+sd);
+    const sug=vel>0?Math.max(1,Math.ceil(vel*covDays)):0;
+
+    let status='ok';
+    if(vel===0&&curr===0)status='sem_giro';
+    else if(curr<=0&&vel>0)status='zerado';
+    else if(vel>0&&dLeft<=ld)status='urgente';
+    else if(vel>0&&curr<=rop)status='atencao';
+
+    return{cor,tam,k,
+      sold:skuData?skuData.qty:0,
+      vel,isNew,activeDays,covDays,curr,
+      dLeft:isFinite(dLeft)?Math.round(dLeft):null,
+      rop:Math.round(rop),sug,status};
+  })).sort((a,b)=>({zerado:0,urgente:1,atencao:2,ok:3,sem_giro:4}[a.status]||5)-({zerado:0,urgente:1,atencao:2,ok:3,sem_giro:4}[b.status]||5));
+}
+
+
+function runAnalysis(rows,model,filename){
+  const fmt=detectFormat(rows);
+  if(fmt==='upseller')return runAnalysisUpseller(rows,model,filename);
+  return runAnalysisMercadoLivre(rows,model);
+}
+
+function genInsights(an,model){
+  if(!an)return[];
+  const{cores,tamanhos,skuTable,totalU,dailyAvg,days}=an;
+  const ld=model.leadTimeDays||15,sd=model.safetyDays||7;
+  const ins=[];
+  if(cores.length){const[tc,tq]=cores[0];ins.push({tipo:'top',txt:`${tc} é a cor campeã com ${(tq/totalU*100).toFixed(0)}% das vendas (${tq} un). Nunca deixe essa variação zerar — é o motor do faturamento deste modelo.`});}
+  if(tamanhos.length>=2){const top2=tamanhos.slice(0,2);const p=(top2.reduce((s,[,q])=>s+q,0)/totalU*100).toFixed(0);ins.push({tipo:'tam',txt:`${top2.map(([t])=>t).join(' e ')} somam ${p}% das vendas. Esses tamanhos esgotam primeiro — mantenha estoque mais fundo nessas grades.`});}
+  if(skuTable.length){const t=skuTable[0];const rop=Math.ceil(t.velDay*(ld+sd));ins.push({tipo:'rep',txt:`SKU âncora: ${t.cor} ${t.tamanho} vende ${t.velDay.toFixed(2)} un/dia. Com ${ld}d de lead time + ${sd}d de segurança, o ponto de pedido é ${rop} unidades — abaixo disso, peça imediatamente.`});}
+  const zeros=skuTable.filter(s=>s.qty===0);
+  if(zeros.length)ins.push({tipo:'alerta',txt:`${zeros.length} variação(ões) sem nenhuma venda: ${zeros.map(s=>`${s.cor} ${s.tamanho}`).join(', ')}. Considere não repor essas combinações no próximo lote.`});
+  if(cores.length>1){const[bc,bq]=cores[cores.length-1];ins.push({tipo:'corte',txt:`${bc} representa apenas ${(bq/totalU*100).toFixed(0)}% (${bq} un). Avalie concentrar mais no próximo lote nas cores líderes.`});}
+  ins.push({tipo:'proj',txt:`Velocidade atual: ${dailyAvg.toFixed(2)} un/dia (${days} dias analisados). Projeção 30 dias: ~${Math.round(dailyAvg*30)} unidades. Use como base mínima do próximo lote.`});
+  return ins;
+}
+
+// ── Design Tokens ──────────────────────────────────────────────────────
+const STATUS={zerado:{lbl:'Zerado',bg:'#FCEBEB',col:'#A32D2D'},urgente:{lbl:'Urgente',bg:'#FAEEDA',col:'#854F0B'},atencao:{lbl:'Atenção',bg:'#E6F1FB',col:'#185FA5'},ok:{lbl:'OK',bg:'#EAF3DE',col:'#3B6D11'},sem_giro:{lbl:'Sem giro',bg:'#F1EFE8',col:'#5F5E5A'}};
+const INSIGHT={top:{bg:'#EAF3DE',col:'#3B6D11',ic:'↑'},tam:{bg:'#EEEDFE',col:'#534AB7',ic:'◈'},rep:{bg:'#E6F1FB',col:'#185FA5',ic:'↺'},alerta:{bg:'#FCEBEB',col:'#A32D2D',ic:'⚠'},corte:{bg:'#FAEEDA',col:'#854F0B',ic:'↓'},proj:{bg:'#F1EFE8',col:'#5F5E5A',ic:'→'}};
+const COLS=['#534AB7','#378ADD','#1D9E75','#EF9F27','#D4537E','#D85A30','#39C5BB','#854F0B'];
+
+// ── Atoms ──────────────────────────────────────────────────────────────
+function Bdg({status}){const s=STATUS[status]||STATUS.ok;return React.createElement('span',{className:'status-badge',style:{background:s.bg,color:s.col}},s.lbl);}
+function Met({label,value,sub}){return React.createElement('div',{className:'met'},React.createElement('div',{className:'met-label'},label),React.createElement('div',{className:'met-value'},value),sub&&React.createElement('div',{className:'met-sub'},sub));}
+function SecTitle({children}){return React.createElement('div',{className:'sec-title'},children);}
+function SelModel({models,value,onChange}){
+  if(!models.length)return React.createElement('div',{className:'no-data',style:{padding:'12px 0'}},'Nenhum modelo cadastrado. Vá em Modelos para adicionar.');
+  return React.createElement('select',{value:value||'',onChange:e=>onChange(e.target.value),className:'input',style:{marginBottom:14}},
+    React.createElement('option',{value:''},'Selecione um modelo...'),
+    ...models.map(m=>React.createElement('option',{key:m.id,value:m.id},m.name))
+  );
+}
+
+// ── ModelosView ──────────────────────────────────────────────────────────
+function ModelosView({models,analyses,onEdit,onDelete,onAdd}){
+  return React.createElement('div',null,
+    React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}},
+      React.createElement('div',null,
+        React.createElement('div',{style:{fontSize:17,fontWeight:600}},`Modelos (${models.length})`),
+        React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},'Configure cada produto com suas grades e lead times individuais')
+      ),
+      React.createElement('button',{className:'btn-primary',onClick:onAdd},'+ Novo modelo')
+    ),
+    !models.length&&React.createElement('div',{className:'card no-data',style:{padding:40}},
+      React.createElement('div',{style:{fontSize:36,marginBottom:12}},'👗'),
+      React.createElement('div',{style:{fontSize:15,fontWeight:600,marginBottom:6}},'Nenhum modelo ainda'),
+      React.createElement('div',{style:{fontSize:13,marginBottom:20}},'Cadastre seus modelos com cores, tamanhos e lead time de fabricação.'),
+      React.createElement('button',{className:'btn-primary',onClick:onAdd},'Adicionar primeiro modelo')
+    ),
+    React.createElement('div',{style:{display:'grid',gap:10}},
+      models.map(m=>{
+        const a=analyses[m.id];
+        return React.createElement('div',{key:m.id,className:'card'},
+          React.createElement('div',{style:{display:'flex',alignItems:'flex-start',gap:12}},
+            React.createElement('div',{style:{flex:1}},
+              React.createElement('div',{style:{fontSize:15,fontWeight:600,marginBottom:3}},m.name),
+              React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:8}},`Lead time: ${m.leadTimeDays||15}d · Segurança: ${m.safetyDays||7}d · Provisão: ${m.coverageDays||30}d · Estratégia: ${m.estrategiaLote==='full'?'Full Grade':m.estrategiaLote==='critico'?'Apenas Críticas':'Inteligente'}${m.skuCode?` · SKU: ${m.skuCode}`:''}`),
+              React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:5,marginBottom:a?8:0}},
+                ...(m.cores||[]).map(c=>React.createElement('span',{key:c,className:'chip chip-gray'},c)),
+                ...(m.tamanhos||[]).map(t=>React.createElement('span',{key:t,className:'chip chip-blue'},t))
+              ),
+              a&&React.createElement('div',{style:{fontSize:11,color:'var(--text3)'}},`Última análise: ${a.totalU} un em ${a.days} dias · ${a.dailyAvg?.toFixed(2)} un/dia`)
+            ),
+            React.createElement('div',{style:{display:'flex',gap:6,flexShrink:0}},
+              React.createElement('button',{className:'btn-secondary',onClick:()=>onEdit(m)},'Editar'),
+              React.createElement('button',{className:'btn-danger',onClick:()=>onDelete(m.id)},'Excluir')
+            )
+          )
+        );
+      })
+    )
+  );
+}
+
+// ── ModelForm ──────────────────────────────────────────────────────────
+function ModelForm({model,onSave,onClose}){
+  const[form,setForm]=useState({name:model.name||'',skuCode:model.skuCode||'',leadTimeDays:model.leadTimeDays||15,safetyDays:model.safetyDays||7,coverageDays:model.coverageDays||30,estrategiaLote:model.estrategiaLote||'inteligente',cores:model.cores||[],tamanhos:model.tamanhos||[],id:model.id||null});
+  const[nc,setNc]=useState('');const[nt,setNt]=useState('');
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const addC=()=>{const v=nc.trim().toUpperCase();if(v&&!form.cores.includes(v)){set('cores',[...form.cores,v]);setNc('');}};
+  const addT=()=>{const v=nt.trim().toUpperCase();if(v&&!form.tamanhos.includes(v)){set('tamanhos',[...form.tamanhos,v]);setNt('');}};
+  const save=()=>{if(!form.name.trim()){alert('Informe o nome do modelo');return;}onSave(form);};
+  return React.createElement('div',{className:'modal-overlay',onClick:e=>{if(e.target===e.currentTarget)onClose();}},
+    React.createElement('div',{className:'modal'},
+      React.createElement('div',{style:{fontSize:16,fontWeight:600,marginBottom:20}},model.id?'Editar modelo':'Novo modelo'),
+      React.createElement('div',{style:{display:'grid',gap:14}},
+        React.createElement('label',null,React.createElement('span',{className:'label'},'Nome do modelo *'),React.createElement('input',{className:'input',value:form.name,onChange:e=>set('name',e.target.value),placeholder:'Ex: Vestido Pietra'})),
+        React.createElement('label',null,
+          React.createElement('span',{className:'label'},'Código SKU pai (do relatório)'),
+          React.createElement('input',{className:'input',value:form.skuCode,onChange:e=>set('skuCode',e.target.value),placeholder:'Ex: 03154'}),
+          React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:4}},'Se informado, busca exata pelo código. Sem código, busca o nome na coluna Descrição.')
+        ),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('label',null,React.createElement('span',{className:'label'},'Lead time (dias) *'),React.createElement('input',{className:'input',type:'number',value:form.leadTimeDays,onChange:e=>set('leadTimeDays',+e.target.value),min:1}),React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:4}},'Do pedido até chegar em mãos')),
+          React.createElement('label',null,React.createElement('span',{className:'label'},'Estoque de segurança (dias)'),React.createElement('input',{className:'input',type:'number',value:form.safetyDays,onChange:e=>set('safetyDays',+e.target.value),min:0}),React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:4}},'Buffer extra de proteção'))
+        ),
+        React.createElement('div',null,
+          React.createElement('span',{className:'label'},'Provisão de cobertura'),
+          React.createElement('div',{style:{display:'flex',gap:6,marginTop:6,flexWrap:'wrap'}},
+            ...[15,30,45,60,90].map(d=>React.createElement('button',{key:d,type:'button',
+              onClick:()=>set('coverageDays',d),
+              style:{padding:'7px 0',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',
+                minWidth:48,flex:1,
+                border:`2px solid ${form.coverageDays===d?'var(--text)':'var(--border)'}`,
+                background:form.coverageDays===d?'var(--text)':'var(--bg2)',
+                color:form.coverageDays===d?'var(--bg)':'var(--text2)'}
+            },d+'d'))
+          ),
+          React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:5}},'Dias de cobertura usados na sugestão de reposição. Variações novas (<21d) recebem metade deste valor automaticamente.')
+        ),
+        React.createElement('div',null,
+          React.createElement('span',{className:'label'},'Estratégia de lote'),
+          React.createElement('select',{className:'input',value:form.estrategiaLote,onChange:e=>set('estrategiaLote',e.target.value),style:{marginTop:6}},
+            React.createElement('option',{value:'inteligente'},'🎯 Inteligente (Crítico + Mínimo)'),
+            React.createElement('option',{value:'full'},'📦 Full Grade (Todas as variações)'),
+            React.createElement('option',{value:'critico'},'⚠️ Apenas Críticas')
+          ),
+          React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:5}},
+            form.estrategiaLote==='inteligente'?'Variações críticas recebem cobertura completa, outras recebem estoque mínimo para completar grade.':
+            form.estrategiaLote==='full'?'TODAS as combinações cor×tamanho, mesmo sem vendas, recebem estoque mínimo.':
+            'Apenas variações zeradas, urgentes ou em atenção recebem reposição.'
+          )
+        ),
+        React.createElement('div',null,
+          React.createElement('span',{className:'label'},'Cores disponíveis'),
+          React.createElement('div',{style:{display:'flex',gap:6,marginBottom:8}},
+            React.createElement('input',{className:'input',value:nc,onChange:e=>setNc(e.target.value),onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();addC();}},placeholder:'Ex: AZUL'}),
+            React.createElement('button',{className:'btn-secondary',onClick:addC},'+ Add')
+          ),
+          React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:5}},
+            form.cores.map(c=>React.createElement('span',{key:c,className:'chip chip-gray'},c,React.createElement('span',{onClick:()=>set('cores',form.cores.filter(x=>x!==c)),style:{cursor:'pointer',fontSize:14,lineHeight:1,color:'var(--text3)'}},'×')))
+          )
+        ),
+        React.createElement('div',null,
+          React.createElement('span',{className:'label'},'Tamanhos disponíveis'),
+          React.createElement('div',{style:{display:'flex',gap:6,marginBottom:8}},
+            React.createElement('input',{className:'input',value:nt,onChange:e=>setNt(e.target.value),onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();addT();}},placeholder:'Ex: G1'}),
+            React.createElement('button',{className:'btn-secondary',onClick:addT},'+ Add')
+          ),
+          React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:5}},
+            form.tamanhos.map(t=>React.createElement('span',{key:t,className:'chip chip-blue'},t,React.createElement('span',{onClick:()=>set('tamanhos',form.tamanhos.filter(x=>x!==t)),style:{cursor:'pointer',fontSize:14,lineHeight:1}},'×')))
+          )
+        )
+      ),
+      React.createElement('div',{style:{display:'flex',gap:8,marginTop:20,justifyContent:'flex-end'}},
+        React.createElement('button',{className:'btn-secondary',onClick:onClose},'Cancelar'),
+        React.createElement('button',{className:'btn-primary',onClick:save},'Salvar modelo')
+      )
+    )
+  );
+}
+
+// ── AnaliseView ────────────────────────────────────────────────────────
+function AnaliseView({models,selId,onSel,analysis,model,onUpload,upStatus}){
+  const fileRef=useRef();const[drag,setDrag]=useState(false);
+  const ins=model&&analysis?genInsights(analysis,model):[];
+  const fmtDate=iso=>new Date(iso).toLocaleDateString('pt-BR');
+  return React.createElement('div',null,
+    React.createElement('div',{style:{fontSize:17,fontWeight:600,marginBottom:2}},'Análise de vendas'),
+    React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:14}},'Faça upload do relatório para analisar todos os modelos automaticamente.'),
+    React.createElement('div',{className:`upload-zone${drag?' drag':''}`,onDragOver:e=>{e.preventDefault();setDrag(true);},onDragLeave:()=>setDrag(false),onDrop:e=>{e.preventDefault();setDrag(false);if(e.dataTransfer.files[0])onUpload(e.dataTransfer.files[0]);},onClick:()=>fileRef.current.click()},
+      React.createElement('div',{style:{fontSize:28,marginBottom:6}},'📂'),
+      React.createElement('div',{style:{fontSize:13,fontWeight:500,marginBottom:3}},'Arraste o relatório ou clique para selecionar'),
+      React.createElement('div',{style:{fontSize:11,color:'var(--text3)'}},'Suporte: .xls · .xlsx · .csv'),
+      React.createElement('input',{ref:fileRef,type:'file',accept:'.xls,.xlsx,.csv',style:{display:'none'},onChange:e=>{if(e.target.files[0])onUpload(e.target.files[0]);e.target.value='';}})
+    ),
+    upStatus&&React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:12,padding:'8px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8}},upStatus),
+    React.createElement(SelModel,{models,value:selId,onChange:onSel}),
+    !analysis&&selId&&React.createElement('div',{className:'card no-data'},'Nenhuma análise para este modelo. Faça upload de um relatório.'),
+    analysis&&model&&React.createElement('div',null,
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:10,flexWrap:'wrap'}},
+        React.createElement('div',{style:{fontSize:11,color:'var(--text3)'}},`Período: ${fmtDate(analysis.minDate)} — ${fmtDate(analysis.maxDate)} · ${analysis.days} dias analisados`),
+        analysis.fmt==='upseller'&&React.createElement('span',{style:{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:'#EEEDFE',color:'#534AB7',letterSpacing:'.03em'}},'Upseller'),
+        analysis.fmt!=='upseller'&&React.createElement('span',{style:{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:'#EAF3DE',color:'#3B6D11',letterSpacing:'.03em'}},'Mercado Livre')
+      ),
+      analysis.fmt==='upseller'&&React.createElement('div',{style:{fontSize:11,color:'#534AB7',marginBottom:10,padding:'8px 12px',background:'#EEEDFE',border:'1px solid #B5B3DD',borderRadius:8,lineHeight:1.6}},
+        '📦 Relatório Upseller: dados agregados por variação. ',
+        React.createElement('strong',null,'Período extraído do nome do arquivo. '),
+        'Análise de lucratividade indisponível (sem dados de lucro). Ciclo de vida usa estimativa proporcional.'
+      ),
+      React.createElement('div',{className:'met-grid'},
+        React.createElement(Met,{label:'Total vendido',value:`${analysis.totalU} un`,sub:`${analysis.dailyAvg?.toFixed(2)} un/dia`}),
+        React.createElement(Met,{label:'Receita total',value:fBRL(analysis.totalR)}),
+        React.createElement(Met,{label:'Ticket médio',value:`R$${analysis.avgTicket?.toFixed(2)}`}),
+        React.createElement(Met,{label:'Cores com venda',value:analysis.cores?.length||0,sub:`de ${model.cores?.length||0} cadastradas`})
+      ),
+      
+      // ── NOVA SEÇÃO: Aptidão para Full Grade ──
+      React.createElement('div',{className:'card'},
+        React.createElement(SecTitle,null,'Aptidão para Full Grade'),
+        (()=>{
+          const totalVariacoes=(model.cores||[]).length*(model.tamanhos||[]).length;
+          const variacoesComVenda=analysis.skuTable?.length||0;
+          const variacoesSemVenda=totalVariacoes-variacoesComVenda;
+          const pctCobertura=(variacoesComVenda/totalVariacoes*100).toFixed(1);
+          const estrategia=model.estrategiaLote||'inteligente';
+          
+          return React.createElement('div',null,
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:8,marginBottom:12}},
+              React.createElement('div',{style:{background:'var(--bg2)',borderRadius:8,padding:'10px 12px'}},
+                React.createElement('div',{style:{fontSize:10,color:'var(--text2)',marginBottom:3}},'Total de variações'),
+                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'var(--text)'}},totalVariacoes),
+                React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:2}},`${model.cores?.length||0} cores × ${model.tamanhos?.length||0} tamanhos`)
+              ),
+              React.createElement('div',{style:{background:'#EAF3DE',borderRadius:8,padding:'10px 12px'}},
+                React.createElement('div',{style:{fontSize:10,color:'#3B6D11',marginBottom:3}},'Com histórico'),
+                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#3B6D11'}},variacoesComVenda),
+                React.createElement('div',{style:{fontSize:10,color:'#3B6D11',marginTop:2}},`${pctCobertura}% da grade`)
+              ),
+              React.createElement('div',{style:{background:'#F1EFE8',borderRadius:8,padding:'10px 12px'}},
+                React.createElement('div',{style:{fontSize:10,color:'#5F5E5A',marginBottom:3}},'Sem histórico'),
+                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#5F5E5A'}},variacoesSemVenda),
+                React.createElement('div',{style:{fontSize:10,color:'#5F5E5A',marginTop:2}},'Serão incluídas no full')
+              )
+            ),
+            React.createElement('div',{style:{padding:'10px 12px',background:estrategia==='full'?'var(--bluebg)':'var(--bg2)',border:`1px solid ${estrategia==='full'?'#B5D4F4':'var(--border)'}`,borderRadius:8,marginBottom:10}},
+              React.createElement('div',{style:{fontSize:11,fontWeight:600,color:estrategia==='full'?'var(--blue)':'var(--text2)',marginBottom:3}},
+                estrategia==='full'?'✓ Estratégia Full Grade ativada':estrategia==='critico'?'⚠ Estratégia: Apenas Críticas':'🎯 Estratégia Inteligente ativada'
+              ),
+              React.createElement('div',{style:{fontSize:11,color:estrategia==='full'?'var(--blue)':'var(--text2)'}},
+                estrategia==='full'?`No próximo lote, todas as ${totalVariacoes} variações receberão estoque mínimo, incluindo as ${variacoesSemVenda} sem histórico de vendas.`:
+                estrategia==='critico'?`Apenas variações críticas (zerado/urgente/atenção) receberão reposição.`:
+                `Variações críticas recebem cobertura completa, outras (${variacoesComVenda} com venda) recebem estoque mínimo.`
+              )
+            ),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text2)',lineHeight:1.6}},
+              React.createElement('strong',null,'Recomendação: '),
+              variacoesSemVenda===0?'Grade já está 100% coberta com vendas. Qualquer estratégia funcionará bem.':
+              variacoesSemVenda<=3?`Apenas ${variacoesSemVenda} variações sem histórico. Full Grade é viável com baixo risco.`:
+              variacoesSemVenda<=8?`${variacoesSemVenda} variações sem histórico. Considere Full Grade se o custo de estoque parado for aceitável.`:
+              `${variacoesSemVenda} variações sem histórico (${(100-parseFloat(pctCobertura)).toFixed(1)}% da grade). Estratégia Inteligente é mais segura para evitar estoque parado.`
+            )
+          );
+        })()
+      ),
+      
+      React.createElement('div',{className:'card'},
+        React.createElement(SecTitle,null,'Raciocínio analítico'),
+        ins.map((i,idx)=>{const st=INSIGHT[i.tipo]||INSIGHT.proj;return React.createElement('div',{key:idx,className:'insight',style:{background:st.bg}},React.createElement('span',{className:'insight-icon',style:{color:st.col}},st.ic),React.createElement('span',{className:'insight-text'},i.txt));})
+      ),
+      React.createElement('div',{className:'two-col'},
+        React.createElement('div',{className:'card'},
+          React.createElement(SecTitle,null,'Vendas por cor'),
+          analysis.cores?.map(([cor,qty],i)=>React.createElement('div',{key:cor,className:'bar-row'},
+            React.createElement('div',{style:{width:8,height:8,borderRadius:2,background:COLS[i%COLS.length],flexShrink:0}}),
+            React.createElement('div',{className:'bar-label'},cor),
+            React.createElement('div',{className:'bar-track'},React.createElement('div',{className:'bar-fill',style:{width:`${analysis.totalU>0?qty/analysis.totalU*100:0}%`,background:COLS[i%COLS.length]}})),
+            React.createElement('div',{className:'bar-qty'},qty)
+          ))
+        ),
+        React.createElement('div',{className:'card'},
+          React.createElement(SecTitle,null,'Vendas por tamanho'),
+          analysis.tamanhos?.map(([tam,qty])=>React.createElement('div',{key:tam,className:'bar-row'},
+            React.createElement('div',{style:{fontSize:12,color:'var(--text2)',width:32,flexShrink:0}},tam),
+            React.createElement('div',{className:'bar-track'},React.createElement('div',{className:'bar-fill',style:{width:`${analysis.totalU>0?qty/analysis.totalU*100:0}%`,background:'#1D9E75'}})),
+            React.createElement('div',{className:'bar-qty'},qty)
+          ))
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement(SecTitle,null,'Detalhe por variação (cor × tamanho)'),
+        React.createElement('div',{style:{overflowX:'auto'}},
+          React.createElement('table',null,
+            React.createElement('thead',null,React.createElement('tr',null,...['Cor','Tamanho','Qtd','%','Un/dia'].map(h=>React.createElement('th',{key:h},h)))),
+            React.createElement('tbody',null,
+              analysis.skuTable?.map((row,i)=>React.createElement('tr',{key:i,style:{background:i===0?'var(--bg2)':'transparent'}},
+                React.createElement('td',{style:{fontWeight:i===0?600:400}},row.cor),
+                React.createElement('td',null,row.tamanho),
+                React.createElement('td',{style:{fontWeight:600}},row.qty),
+                React.createElement('td',{style:{color:'var(--text2)'}},`${row.pct.toFixed(0)}%`),
+                React.createElement('td',{style:{color:'var(--text2)'}},row.velDay.toFixed(2))
+              ))
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── ReposicaoView ──────────────────────────────────────────────────────
+function ReposicaoView({models,selId,onSel,model,analysis,stock,rep,onUpdateStock}){
+  const[editing,setEditing]=useState(false);
+  const urgentes=rep.filter(r=>r.status==='zerado'||r.status==='urgente');
+  const atencao=rep.filter(r=>r.status==='atencao');
+
+  // Build matrix: unique cores and tamanhos from model config
+  const cores=model?[...(model.cores||[])]:[];
+  const tams=model?[...(model.tamanhos||[])]:[];
+  // Status lookup for border color
+  const repByKey={};rep.forEach(r=>{repByKey[r.k]=r;});
+  const statusColor={zerado:'#FAC775',urgente:'#FAC775',atencao:'#B5D4F4',ok:'var(--border)',sem_giro:'var(--border)'};
+
+  return React.createElement('div',null,
+    React.createElement('div',{style:{fontSize:17,fontWeight:600,marginBottom:2}},'Cronograma de reposição'),
+    React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:14}},'Controle o estoque atual e saiba exatamente quando pedir cada variação.'),
+    React.createElement(SelModel,{models,value:selId,onChange:id=>{onSel(id);setEditing(false);}}),
+    !selId&&React.createElement('div',{className:'card no-data'},'Selecione um modelo para ver o cronograma.'),
+    selId&&!analysis&&React.createElement('div',{className:'card no-data'},'Sem análise disponível. Faça upload de um relatório na aba Análise primeiro.'),
+    selId&&analysis&&model&&React.createElement('div',null,
+      urgentes.length>0&&React.createElement('div',{className:'alert-amber'},
+        React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--amber)',marginBottom:3}},`⚠ ${urgentes.length} variação(ões) com reposição urgente`),
+        React.createElement('div',{style:{fontSize:12,color:'var(--amber)'}},urgentes.map(u=>`${u.cor} ${u.tam}`).join(' · '))
+      ),
+      atencao.length>0&&React.createElement('div',{className:'alert-blue'},
+        React.createElement('div',{style:{fontSize:12,fontWeight:600,color:'var(--blue)',marginBottom:2}},`${atencao.length} variação(ões) abaixo do ponto de pedido`),
+        React.createElement('div',{style:{fontSize:11,color:'var(--blue)'}},atencao.map(u=>`${u.cor} ${u.tam}`).join(' · '))
+      ),
+
+      // ── Matriz de estoque ──────────────────────────────────────────────
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}},
+          React.createElement('div',null,
+            React.createElement(SecTitle,null,'Estoque atual — Cor × Tamanho'),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},editing?'Digite as quantidades diretamente nas células e clique em Concluir.':'Clique em Editar para preencher o estoque de cada variação.')
+          ),
+          React.createElement('button',{
+            className:editing?'btn-primary':'btn-secondary',
+            onClick:()=>setEditing(e=>!e)
+          },editing?'✓ Concluir':'✏ Editar estoque')
+        ),
+        React.createElement('div',{style:{overflowX:'auto'}},
+          React.createElement('table',{style:{width:'100%',borderCollapse:'separate',borderSpacing:4}},
+            // Header row: tamanhos
+            React.createElement('thead',null,
+              React.createElement('tr',null,
+                React.createElement('th',{style:{textAlign:'left',padding:'6px 10px',fontSize:11,fontWeight:600,color:'var(--text2)',background:'var(--bg2)',borderRadius:6,minWidth:110}},'Cor \\ Tam.'),
+                ...tams.map(t=>React.createElement('th',{key:t,style:{textAlign:'center',padding:'6px 10px',fontSize:12,fontWeight:700,color:'var(--text)',background:'var(--bg2)',borderRadius:6,minWidth:72}},t)),
+                React.createElement('th',{style:{textAlign:'center',padding:'6px 10px',fontSize:11,fontWeight:600,color:'var(--text2)',background:'var(--bg2)',borderRadius:6,minWidth:56}},'Total')
+              )
+            ),
+            React.createElement('tbody',null,
+              cores.map(cor=>{
+                const rowTotal=tams.reduce((s,t)=>{const k=`${cor}||${t}`;return s+(+(stock[k]||0));},0);
+                return React.createElement('tr',{key:cor},
+                  // Cor label
+                  React.createElement('td',{style:{padding:'4px 10px',fontWeight:600,fontSize:13,color:'var(--text)',background:'var(--bg2)',borderRadius:6,whiteSpace:'nowrap'}},cor),
+                  // Cells per tamanho
+                  ...tams.map(t=>{
+                    const k=`${cor}||${t}`;
+                    const r=repByKey[k];
+                    const curr=+(stock[k]||0);
+                    const bc=r?statusColor[r.status]||'var(--border)':'var(--border)';
+                    const hasAlert=r&&(r.status==='zerado'||r.status==='urgente'||r.status==='atencao');
+                    return React.createElement('td',{key:t,style:{padding:2,textAlign:'center'}},
+                      editing
+                        ?React.createElement('div',{style:{position:'relative'}},
+                            React.createElement('input',{
+                              type:'number',min:0,
+                              value:curr===0&&!stock[k]?'':curr,
+                              placeholder:'0',
+                              onChange:e=>onUpdateStock(k,e.target.value),
+                              style:{
+                                width:'100%',padding:'8px 4px',textAlign:'center',
+                                borderRadius:8,border:`2px solid ${bc}`,
+                                background:hasAlert?`${bc}22`:'var(--bg)',
+                                color:'var(--text)',fontSize:15,fontWeight:700,
+                                fontFamily:'inherit',outline:'none',boxSizing:'border-box'
+                              }
+                            }),
+                            r&&r.isNew&&React.createElement('div',{style:{position:'absolute',top:-6,right:-4,fontSize:8,fontWeight:800,background:'#534AB7',color:'#fff',borderRadius:3,padding:'0 3px',lineHeight:'14px'}},'N')
+                          )
+                        :React.createElement('div',{style:{
+                            padding:'8px 4px',borderRadius:8,
+                            border:`2px solid ${hasAlert?bc:'transparent'}`,
+                            background:hasAlert?`${bc}22`:'var(--bg2)',
+                            fontSize:15,fontWeight:700,color:curr===0?'var(--text3)':'var(--text)',
+                            position:'relative'
+                          }},
+                          curr===0?'—':`${curr}`,
+                          r&&r.isNew&&React.createElement('span',{style:{position:'absolute',top:0,right:0,fontSize:8,fontWeight:800,background:'#534AB7',color:'#fff',borderRadius:'0 6px 0 4px',padding:'0 3px',lineHeight:'14px'}},'N')
+                        )
+                    );
+                  }),
+                  // Row total
+                  React.createElement('td',{style:{padding:'4px 6px',textAlign:'center',fontWeight:700,fontSize:13,color:rowTotal===0?'var(--text3)':'var(--text)',background:'var(--bg2)',borderRadius:6}},
+                    rowTotal===0?'—':rowTotal
+                  )
+                );
+              }),
+              // Footer: total por tamanho
+              React.createElement('tr',null,
+                React.createElement('td',{style:{padding:'6px 10px',fontWeight:600,fontSize:11,color:'var(--text2)',background:'var(--bg2)',borderRadius:6}},'Total'),
+                ...tams.map(t=>{
+                  const colTotal=cores.reduce((s,cor)=>s+(+(stock[`${cor}||${t}`]||0)),0);
+                  return React.createElement('td',{key:t,style:{padding:'4px 6px',textAlign:'center',fontWeight:700,fontSize:13,color:colTotal===0?'var(--text3)':'var(--text)',background:'var(--bg2)',borderRadius:6}},
+                    colTotal===0?'—':colTotal
+                  );
+                }),
+                React.createElement('td',{style:{padding:'4px 6px',textAlign:'center',fontWeight:800,fontSize:14,color:'var(--text)',background:'var(--bg2)',borderRadius:6}},
+                  cores.reduce((s,cor)=>s+tams.reduce((ss,t)=>ss+(+(stock[`${cor}||${t}`]||0)),0),0)||'—'
+                )
+              )
+            )
+          )
+        ),
+        // Legenda
+        React.createElement('div',{style:{display:'flex',gap:14,flexWrap:'wrap',marginTop:10,fontSize:11,color:'var(--text3)'}},
+          React.createElement('span',null,'Bordas: '),
+          React.createElement('span',{style:{color:'var(--amber)',fontWeight:600}},'▮ Urgente/Zerado'),
+          React.createElement('span',{style:{color:'var(--blue)',fontWeight:600}},'▮ Atenção'),
+          React.createElement('span',{style:{color:'#534AB7',fontWeight:600}},'N = variação nova (<21d)')
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement(SecTitle,null,'Cronograma detalhado'),
+        React.createElement('div',{style:{overflowX:'auto'}},
+          React.createElement('table',null,
+            React.createElement('thead',null,React.createElement('tr',null,...['Variação','Estoque','Dias restantes','Ponto de pedido','Cobertura','Sugestão','Status'].map(h=>React.createElement('th',{key:h},h)))),
+            React.createElement('tbody',null,
+              rep.map((r,i)=>React.createElement('tr',{key:r.k,style:{background:i%2===1?'var(--bg2)':'transparent'}},
+                React.createElement('td',{style:{fontWeight:500,whiteSpace:'nowrap'}},
+                  `${r.cor} · ${r.tam}`,
+                  r.isNew&&React.createElement('span',{style:{marginLeft:6,fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:4,background:'#EEEDFE',color:'#534AB7'}},'NOVA'),
+                  r.isNew&&React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:1}},`${r.activeDays}d ativos`)
+                ),
+                React.createElement('td',null,`${r.curr} un`),
+                React.createElement('td',{style:{color:r.status==='urgente'||r.status==='zerado'?'var(--red)':'var(--text)',fontWeight:r.status==='urgente'||r.status==='zerado'?600:400}},r.dLeft!==null?`${r.dLeft}d`:'—'),
+                React.createElement('td',{style:{color:'var(--text2)'}},r.rop>0?`≤ ${r.rop} un`:'—'),
+                React.createElement('td',{style:{fontSize:11,color:r.isNew?'#534AB7':'var(--text3)'}},r.isNew?`${r.covDays}d ⚑`:`${r.covDays}d`),
+                React.createElement('td',{style:{fontWeight:600}},r.status==='sem_giro'?'—':r.sug>0?`${r.sug} un`:'—'),
+                React.createElement('td',null,React.createElement(Bdg,{status:r.status}))
+              ))
+            )
+          )
+        ),
+        React.createElement('div',{className:'reasoning-box'},
+          React.createElement('strong',{style:{color:'var(--text)'}},'Como os alertas são calculados: '),
+          `Ponto de pedido = velocidade × (${model.leadTimeDays||15}d lead time + ${model.safetyDays||7}d segurança). `,
+          React.createElement('strong',{style:{color:'var(--amber)'}},'Urgente'),': estoque não cobre o lead time — peça agora. ',
+          React.createElement('strong',{style:{color:'var(--blue)'}},'Atenção'),': abaixo do ponto de pedido — programe o pedido. ',
+          React.createElement('strong',{style:{color:'#534AB7'}},'NOVA ⚑'),': variação com menos de 21 dias de histórico — velocidade calculada pelos dias ativos, sugestão conservadora de 15 dias de cobertura até confirmar o padrão.'
+        )
+      )
+    )
+  );
+}
+
+// ── LoteView ───────────────────────────────────────────────────────────
+function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedido,onDeletePedido}){
+  const[showForm,setShowForm]=useState(false);
+  const[formData,setFormData]=useState({dataPedido:'',dataEntrega:'',obs:'',itens:[]});
+  const[selModelId,setSelModelId]=useState('');
+
+  const selModel=models.find(m=>m.id===selModelId);
+  const selAn=selModelId?analyses[selModelId]:null;
+  const selSt=selModelId?(stocks[selModelId]||{}):{};
+  const selCusto=selModelId?(costs[selModelId]||0):0;
+  const selRep=selModel&&selAn?buildRep(selAn,selSt,selModel):[];
+
+  // Items to include in lote for selected model
+  const hasStock=Object.keys(selSt).length>0;
+  const estrategia=selModel?.estrategiaLote||'inteligente';
+  
+  // Nova lógica com 3 estratégias
+  const loteItens=selModel&&selAn?(
+    estrategia==='full'
+      // FULL GRADE: todas as combinações cor×tamanho
+      ?(selModel.cores||[]).flatMap(cor=>(selModel.tamanhos||[]).map(tam=>{
+          const k=`${cor}||${tam}`;
+          const repItem=selRep.find(r=>r.k===k);
+          const vel=repItem?repItem.vel:0;
+          const isCritico=repItem&&(repItem.status==='zerado'||repItem.status==='urgente'||repItem.status==='atencao');
+          const ld=selModel.leadTimeDays||15;
+          const sd=selModel.safetyDays||7;
+          
+          // Se crítico: cobertura. Senão: mínimo (mesmo sem venda = 1 peça)
+          const tipoCalculo=isCritico?'cobertura':'minimo';
+          const sugFinal=isCritico?(repItem?repItem.sug:1):Math.max(1,Math.ceil(vel*(ld+sd))||1);
+          
+          return{
+            cor,tam,k,
+            vel,
+            isNew:repItem?repItem.isNew:false,
+            activeDays:repItem?repItem.activeDays:0,
+            curr:repItem?repItem.curr:0,
+            status:repItem?repItem.status:'sem_giro',
+            tipoCalculo,
+            sugFinal,
+            sugOriginal:repItem?repItem.sug:1,
+            diasCalculo:isCritico?(repItem?repItem.covDays:30):(ld+sd),
+            sold:repItem?repItem.sold:0,
+            dLeft:repItem?repItem.dLeft:null,
+            rop:repItem?repItem.rop:0,
+            sug:repItem?repItem.sug:1,
+            covDays:repItem?repItem.covDays:(ld+sd)
+          };
+        }))
+      :estrategia==='critico'
+      // APENAS CRÍTICAS: só zerado/urgente/atenção
+      ?selRep.filter(r=>r.status==='zerado'||r.status==='urgente'||r.status==='atencao').map(r=>({
+          ...r,
+          tipoCalculo:'cobertura',
+          sugFinal:r.sug,
+          sugOriginal:r.sug,
+          diasCalculo:r.covDays
+        }))
+      // INTELIGENTE: crítico + mínimo (apenas com venda)
+      :selRep.filter(r=>r.vel>0).map(r=>{
+          const isCritico=r.status==='zerado'||r.status==='urgente'||r.status==='atencao';
+          const ld=selModel.leadTimeDays||15;
+          const sd=selModel.safetyDays||7;
+          
+          const tipoCalculo=isCritico?'cobertura':'minimo';
+          const sugFinal=isCritico?r.sug:Math.max(1,Math.ceil(r.vel*(ld+sd)));
+          
+          return{
+            ...r,
+            tipoCalculo,
+            sugFinal,
+            sugOriginal:r.sug,
+            diasCalculo:isCritico?r.covDays:(ld+sd)
+          };
+        })
+  ):[];
+
+  const totalPecas=loteItens.reduce((s,r)=>s+r.sugFinal,0);
+  const totalInvest=loteItens.reduce((s,r)=>s+r.sugFinal*(selCusto||0),0);
+
+  // Matrix dimensions
+  const mCores=selModel?(selModel.cores||[]):[];
+  const mTams=selModel?(selModel.tamanhos||[]):[];
+  const loteByKey={};loteItens.forEach(r=>{loteByKey[`${r.cor}||${r.tam}`]=r;});
+  const STATUS_COLOR={zerado:'#FAC775',urgente:'#FAC775',atencao:'#B5D4F4'};
+
+  const openForm=()=>{
+    setFormData({
+      dataPedido:new Date().toISOString().slice(0,10),
+      dataEntrega:'',obs:'',
+      modelName:selModel?.name||'',
+      itens:loteItens.map(r=>({...r,modelId:selModelId,modelName:selModel?.name,custo:selCusto,qtdFinal:r.sugFinal,subtotal:r.sugFinal*(selCusto||0)}))
+    });
+    setShowForm(true);
+  };
+  const saveP=()=>{
+    if(!formData.dataPedido){alert('Informe a data do pedido');return;}
+    const total=formData.itens.reduce((s,i)=>s+(i.qtdFinal*(i.custo||0)),0);
+    onSavePedido({...formData,id:uid(),total,totalPecas:formData.itens.reduce((s,i)=>s+i.qtdFinal,0),criadoEm:new Date().toISOString()});
+    setShowForm(false);
+  };
+  const fmtDate=s=>{if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('pt-BR');};
+  const statusPedido=p=>{if(!p.dataEntrega)return'andamento';return new Date(p.dataEntrega+'T00:00:00')<new Date()?'entregue':'andamento';};
+  const pedidosModelo=pedidos.filter(p=>!selModelId||p.modelName===selModel?.name);
+
+  return React.createElement('div',null,
+    React.createElement('div',{style:{fontSize:17,fontWeight:600,marginBottom:2}},'Lote de fabricação'),
+    React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:14}},'Visualize o lote de reposição e o investimento necessário por modelo.'),
+
+    // Seletor
+    React.createElement(SelModel,{models,value:selModelId,onChange:setSelModelId}),
+
+    !selModelId&&React.createElement('div',{className:'card no-data',style:{padding:32}},
+      React.createElement('div',{style:{fontSize:28,marginBottom:10}},'👗'),
+      React.createElement('div',{style:{fontSize:14,fontWeight:600,marginBottom:4}},'Selecione um modelo'),
+      React.createElement('div',{style:{fontSize:12}},'Escolha o modelo acima para ver o lote de reposição e calcular o investimento.')
+    ),
+
+    selModelId&&!selAn&&React.createElement('div',{className:'card no-data',style:{padding:28}},
+      React.createElement('div',{style:{fontSize:28,marginBottom:8}},'📂'),
+      React.createElement('div',{style:{fontSize:13,fontWeight:600,marginBottom:3}},'Sem análise carregada'),
+      React.createElement('div',{style:{fontSize:12}},'Vá na aba Análise, faça upload do relatório e volte aqui.')
+    ),
+
+    selModelId&&selAn&&React.createElement('div',null,
+
+      // ── Custo de fabricação ──
+      React.createElement('div',{className:'card',style:{marginBottom:12}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}},
+          React.createElement('div',null,
+            React.createElement(SecTitle,null,'Custo de fabricação'),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},'Custo por peça deste modelo (salvo automaticamente)')
+          ),
+          React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},
+            React.createElement('span',{style:{fontSize:13,color:'var(--text2)',fontWeight:500}},'R$'),
+            React.createElement('input',{
+              className:'cost-input',type:'number',min:0,step:0.01,
+              value:costs[selModelId]||'',placeholder:'0,00',
+              onChange:e=>onUpdateCost(selModelId,parseFloat(e.target.value)||0),
+              style:{width:120,fontSize:16,fontWeight:700,padding:'8px 10px',background:costs[selModelId]?'var(--bg)':'var(--bg2)'}
+            })
+          )
+        ),
+        !selCusto&&React.createElement('div',{style:{fontSize:11,color:'var(--amber)',marginTop:10,padding:'6px 10px',background:'var(--amberbg)',borderRadius:7}},'⚠ Informe o custo por peça para calcular o investimento total do lote.')
+      ),
+
+      // ── Resumo ──
+      loteItens.length>0&&React.createElement('div',{className:'met-grid',style:{marginBottom:12}},
+        React.createElement(Met,{label:'Total de variações',value:`${loteItens.length}`,sub:estrategia==='full'?'grade 100% completa':estrategia==='critico'?'apenas críticas':`${loteItens.filter(r=>r.tipoCalculo==='cobertura').length} críticas + ${loteItens.filter(r=>r.tipoCalculo==='minimo').length} mínimas`}),
+        React.createElement(Met,{label:'Total de peças',value:`${totalPecas} un`,sub:estrategia==='full'?'todas as variações':estrategia==='critico'?'reposição crítica':'grade completa otimizada'}),
+        React.createElement(Met,{label:'Investimento estimado',value:totalInvest>0?fBRL(totalInvest):'—',sub:selCusto?`R$${selCusto}/peça`:'Informe o custo acima'})
+      ),
+
+      // ── Matriz lote: cor × tamanho ──
+      loteItens.length===0
+        ?React.createElement('div',{className:'card no-data',style:{padding:28}},
+            React.createElement('div',{style:{fontSize:24,marginBottom:8}},'✅'),
+            React.createElement('div',{style:{fontSize:13,fontWeight:600,marginBottom:3}},'Sem vendas detectadas'),
+            React.createElement('div',{style:{fontSize:12}},'Nenhuma variação deste modelo teve vendas no período analisado.')
+          )
+        :React.createElement('div',{className:'card',style:{marginBottom:12}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}},
+              React.createElement('div',null,
+                React.createElement(SecTitle,null,'Lote de reposição — Cor × Tamanho'),
+                React.createElement('div',{style:{fontSize:11,color:'var(--text2)',marginTop:2}},
+                  estrategia==='full'?'📦 Full Grade: todas as combinações incluídas':
+                  estrategia==='critico'?'⚠️ Apenas variações críticas (zerado/urgente/atenção)':
+                  '🎯 Inteligente: críticas + mínimo saudável'
+                )
+              ),
+              React.createElement('div',{style:{display:'flex',gap:10,fontSize:11}},
+                estrategia==='full'
+                  ?React.createElement(React.Fragment,null,
+                      React.createElement('span',{style:{color:'var(--amber)',fontWeight:600}},'▮ Crítico (cobertura)'),
+                      React.createElement('span',{style:{color:'#3B6D11',fontWeight:600}},'▮ Mínimo (1 peça)'),
+                      React.createElement('span',{style:{color:'#534AB7',fontWeight:600}},'N = Nova')
+                    )
+                  :estrategia==='critico'
+                  ?React.createElement(React.Fragment,null,
+                      React.createElement('span',{style:{color:'var(--amber)',fontWeight:600}},'▮ Zerado/Urgente'),
+                      React.createElement('span',{style:{color:'var(--blue)',fontWeight:600}},'▮ Atenção'),
+                      React.createElement('span',{style:{color:'#534AB7',fontWeight:600}},'N = Nova')
+                    )
+                  :React.createElement(React.Fragment,null,
+                      React.createElement('span',{style:{color:'var(--amber)',fontWeight:600}},'▮ Crítico (cobertura)'),
+                      React.createElement('span',{style:{color:'#3B6D11',fontWeight:600}},'▮ Mínimo saudável'),
+                      React.createElement('span',{style:{color:'#534AB7',fontWeight:600}},'N = Nova')
+                    )
+              )
+            ),
+            React.createElement('div',{style:{overflowX:'auto'}},
+              React.createElement('table',{style:{width:'100%',borderCollapse:'separate',borderSpacing:4}},
+                React.createElement('thead',null,
+                  React.createElement('tr',null,
+                    React.createElement('th',{style:{textAlign:'left',padding:'7px 12px',fontSize:11,fontWeight:600,color:'var(--text2)',background:'var(--bg2)',borderRadius:6,minWidth:120}},'Cor \\ Tam.'),
+                    ...mTams.map(t=>React.createElement('th',{key:t,style:{textAlign:'center',padding:'7px 10px',fontSize:12,fontWeight:700,color:'var(--text)',background:'var(--bg2)',borderRadius:6,minWidth:80}},t)),
+                    React.createElement('th',{style:{textAlign:'center',padding:'7px 10px',fontSize:11,fontWeight:600,color:'var(--text2)',background:'var(--bg2)',borderRadius:6}},'Total')
+                  )
+                ),
+                React.createElement('tbody',null,
+                  mCores.map(cor=>{
+                    const rowHasAlert=mTams.some(t=>loteByKey[`${cor}||${t}`]);
+                    if(!rowHasAlert)return null;
+                    const rowTotal=mTams.reduce((s,t)=>{const r=loteByKey[`${cor}||${t}`];return s+(r?r.sugFinal:0);},0);
+                    const rowInvest=rowTotal*(selCusto||0);
+                    return React.createElement('tr',{key:cor},
+                      React.createElement('td',{style:{padding:'4px 12px',fontWeight:600,fontSize:13,color:'var(--text)',background:'var(--bg2)',borderRadius:6,whiteSpace:'nowrap'}},cor),
+                      ...mTams.map(t=>{
+                        const k=`${cor}||${t}`;
+                        const r=loteByKey[k];
+                        if(!r)return React.createElement('td',{key:t,style:{padding:2,textAlign:'center'}},
+                          React.createElement('div',{style:{padding:'8px 4px',borderRadius:8,background:'var(--bg2)',color:'var(--text3)',fontSize:13}},`—`)
+                        );
+                        const bc=r.tipoCalculo==='cobertura'?STATUS_COLOR[r.status]||'var(--border)':'#B5E3C7';
+                        const isCritico=r.tipoCalculo==='cobertura';
+                        return React.createElement('td',{key:t,style:{padding:2,textAlign:'center'}},
+                          React.createElement('div',{style:{padding:'6px 4px',borderRadius:8,border:`2px solid ${bc}`,background:`${bc}22`,position:'relative'}},
+                            React.createElement('div',{style:{fontSize:16,fontWeight:800,color:'var(--text)',lineHeight:1.1}},`${r.sugFinal}`),
+                            React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:2}},`${r.vel.toFixed(2)}/d`),
+                            React.createElement('span',{className:'status-badge',style:{background:isCritico?STATUS[r.status]?.bg:'#EAF3DE',color:isCritico?STATUS[r.status]?.col:'#3B6D11',fontSize:9,padding:'1px 5px',marginTop:3,display:'block'}},isCritico?STATUS[r.status]?.lbl:`Min ${r.diasCalculo}d`),
+                            r.isNew&&React.createElement('span',{style:{position:'absolute',top:0,right:0,fontSize:8,fontWeight:800,background:'#534AB7',color:'#fff',borderRadius:'0 6px 0 4px',padding:'0 3px',lineHeight:'14px'}},'N')
+                          )
+                        );
+                      }),
+                      React.createElement('td',{style:{padding:'4px 6px',textAlign:'center',background:'var(--bg2)',borderRadius:6}},
+                        React.createElement('div',{style:{fontSize:14,fontWeight:800,color:'var(--text)'}},(rowTotal||'—')),
+                        selCusto>0&&React.createElement('div',{style:{fontSize:10,color:'var(--green)',fontWeight:600,marginTop:2}},fBRL(rowInvest))
+                      )
+                    );
+                  }).filter(Boolean),
+                  // Footer totais por tamanho
+                  React.createElement('tr',null,
+                    React.createElement('td',{style:{padding:'6px 12px',fontWeight:600,fontSize:11,color:'var(--text2)',background:'var(--bg2)',borderRadius:6}},'Total'),
+                    ...mTams.map(t=>{
+                      const colTotal=mCores.reduce((s,cor)=>{const r=loteByKey[`${cor}||${t}`];return s+(r?r.sugFinal:0);},0);
+                      const colInvest=colTotal*(selCusto||0);
+                      return React.createElement('td',{key:t,style:{padding:'4px 6px',textAlign:'center',background:'var(--bg2)',borderRadius:6}},
+                        React.createElement('div',{style:{fontSize:13,fontWeight:800,color:colTotal?'var(--text)':'var(--text3)'}},colTotal||'—'),
+                        selCusto>0&&colTotal>0&&React.createElement('div',{style:{fontSize:10,color:'var(--green)',fontWeight:600,marginTop:2}},fBRL(colInvest))
+                      );
+                    }),
+                    React.createElement('td',{style:{padding:'4px 6px',textAlign:'center',background:'var(--bg2)',borderRadius:6}},
+                      React.createElement('div',{style:{fontSize:14,fontWeight:800,color:'var(--text)'}},totalPecas||'—'),
+                      selCusto>0&&totalInvest>0&&React.createElement('div',{style:{fontSize:11,color:'var(--green)',fontWeight:700,marginTop:2}},fBRL(totalInvest))
+                    )
+                  )
+                )
+              )
+            ),
+            React.createElement('div',{className:'reasoning-box',style:{marginTop:10}},
+              React.createElement('strong',{style:{color:'var(--text)'}},'Estratégias disponíveis: '),
+              React.createElement('br'),
+              React.createElement('strong',null,'🎯 Inteligente: '),
+              'Críticas com cobertura completa (',selModel.coverageDays||30,'d), outras com mínimo (',((selModel.leadTimeDays||15)+(selModel.safetyDays||7)),'d). ',
+              React.createElement('strong',null,'📦 Full Grade: '),
+              'TODAS as variações cor×tamanho, mesmo sem vendas. ',
+              React.createElement('strong',null,'⚠️ Apenas Críticas: '),
+              'Só zerado/urgente/atenção. ',
+              React.createElement('strong',{style:{color:'#534AB7'}},'N'),': variação nova (<21d).'
+            ),
+            // Botão registrar
+            React.createElement('div',{style:{display:'flex',justifyContent:'flex-end',marginTop:14}},
+              React.createElement('button',{className:'btn-primary',style:{padding:'10px 22px',fontSize:13},onClick:openForm},'📋 Registrar pedido')
+            )
+          ),
+
+      // ── Histórico do modelo ──
+      pedidosModelo.length>0&&React.createElement('div',{style:{marginTop:20}},
+        React.createElement('div',{style:{fontSize:15,fontWeight:600,marginBottom:10}},`Histórico de pedidos — ${selModel?.name}`),
+        pedidosModelo.slice().reverse().map(p=>{
+          const st=statusPedido(p);
+          return React.createElement('div',{key:p.id,className:'historico-item'},
+            React.createElement('div',{className:'historico-header'},
+              React.createElement('div',null,
+                React.createElement('div',{style:{fontSize:13,fontWeight:600,marginBottom:2}},`Pedido de ${fmtDate(p.dataPedido)}`),
+                React.createElement('div',{style:{fontSize:11,color:'var(--text2)'}},`${p.totalPecas} peças · Entrega prevista: ${fmtDate(p.dataEntrega)}`)
+              ),
+              React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                React.createElement('span',{className:`status-badge status-${st}`},st==='entregue'?'✓ Entregue':'Em andamento'),
+                React.createElement('button',{className:'btn-danger',style:{padding:'3px 9px',fontSize:11},onClick:()=>onDeletePedido(p.id)},'×')
+              )
+            ),
+            p.total>0&&React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--green)',marginTop:4}},`Investimento: ${fBRL(p.total)}`),
+            p.obs&&React.createElement('div',{style:{fontSize:11,color:'var(--text2)',marginTop:4,fontStyle:'italic'}},p.obs)
+          );
+        })
+      )
+    ),
+
+    // ── Modal registrar pedido ──
+    showForm&&React.createElement('div',{className:'modal-overlay',onClick:e=>{if(e.target===e.currentTarget)setShowForm(false);}},
+      React.createElement('div',{className:'modal'},
+        React.createElement('div',{style:{fontSize:16,fontWeight:600,marginBottom:2}},'Registrar pedido'),
+        React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:14}},selModel?.name),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}},
+          React.createElement('label',null,React.createElement('span',{className:'label'},'Data do pedido *'),React.createElement('input',{className:'input',type:'date',value:formData.dataPedido,onChange:e=>setFormData(f=>({...f,dataPedido:e.target.value}))})),
+          React.createElement('label',null,React.createElement('span',{className:'label'},'Previsão de entrega'),React.createElement('input',{className:'input',type:'date',value:formData.dataEntrega,onChange:e=>setFormData(f=>({...f,dataEntrega:e.target.value}))}))
+        ),
+        React.createElement('div',{style:{marginBottom:12}},
+          React.createElement('div',{className:'label',style:{marginBottom:8}},'Quantidades por variação'),
+          React.createElement('div',{style:{maxHeight:240,overflowY:'auto',display:'grid',gap:5}},
+            formData.itens.map((it,i)=>React.createElement('div',{key:i,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 11px',background:'var(--bg2)',borderRadius:8,gap:10}},
+              React.createElement('div',{style:{flex:1,fontSize:12}},
+                React.createElement('div',{style:{fontWeight:600,color:'var(--text)'}},`${it.cor} · ${it.tam}`),
+                React.createElement('div',{style:{color:'var(--text2)'}},`${it.vel.toFixed(2)} un/dia · sugerido: ${it.sugFinal} ${it.tipoCalculo==='minimo'?'(mín)':''}`),
+                it.tipoCalculo==='minimo'&&React.createElement('div',{style:{fontSize:10,color:'var(--green)',marginTop:1}},`Estoque mínimo para grade completa`)
+              ),
+              React.createElement('input',{type:'number',min:0,value:it.qtdFinal,
+                onChange:e=>{const v=+e.target.value;setFormData(f=>({...f,itens:f.itens.map((x,j)=>j===i?{...x,qtdFinal:v,subtotal:v*(x.custo||0)}:x)}));},
+                style:{width:72,padding:'5px 8px',borderRadius:7,border:'1px solid var(--border)',background:'var(--bg)',color:'var(--text)',fontSize:14,fontWeight:700,fontFamily:'inherit',outline:'none',textAlign:'right'}
+              })
+            ))
+          )
+        ),
+        React.createElement('label',null,
+          React.createElement('span',{className:'label'},'Observação'),
+          React.createElement('input',{className:'input',value:formData.obs,onChange:e=>setFormData(f=>({...f,obs:e.target.value})),placeholder:'Ex: Costureira X, prazo 20 dias...'})
+        ),
+        React.createElement('div',{style:{margin:'14px 0',padding:'10px 13px',background:'var(--bg2)',borderRadius:8,display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          React.createElement('span',{style:{fontSize:12,color:'var(--text2)'}},'Total do lote'),
+          React.createElement('span',{style:{fontSize:17,fontWeight:700,color:'var(--green)'}},fBRL(formData.itens.reduce((s,i)=>s+i.subtotal,0)))
+        ),
+        React.createElement('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+          React.createElement('button',{className:'btn-secondary',onClick:()=>setShowForm(false)},'Cancelar'),
+          React.createElement('button',{className:'btn-primary',onClick:saveP},'Salvar pedido')
+        )
+      )
+    )
+  );
+}
+
+
+// ── LucratividadeView ──────────────────────────────────────────────────
+function LucratividadeView({models,analyses,costs,selId,onSel}){
+  const model=models.find(m=>m.id===selId);
+  const an=selId?analyses[selId]:null;
+  const custo=selId?(costs[selId]||0):0;
+
+  // Build lucratividade table
+  let rows=[];
+  if(an&&an.skuTable){
+    rows=an.skuTable
+      .filter(s=>s.qty>0)
+      .map(s=>{
+        // ticket, lucro marketplace, frete — todos por unidade
+        const ticketUnit=s.ticketUnit||0;
+        const lucMLUnit=s.lucUnit||0;   // Lucro já descontado taxas ML
+        const freUnit=s.freUnit||0;
+        // Lucro real = lucro ML - custo fabricação
+        const lucRealUnit=lucMLUnit-custo;
+        const margemReal=ticketUnit>0?lucRealUnit/ticketUnit*100:0;
+        const margemML=s.margemML||0;
+        // Classificação
+        let tier='A';
+        if(margemReal<0)tier='D';
+        else if(margemReal<15)tier='C';
+        else if(margemReal<30)tier='B';
+        return{...s,ticketUnit,lucMLUnit,freUnit,lucRealUnit,margemReal,margemML,tier};
+      })
+      .sort((a,b)=>b.margemReal-a.margemReal);
+  }
+
+  const fmtDate=iso=>new Date(iso).toLocaleDateString('pt-BR');
+  const semCusto=!custo&&model;
+  const bestSku=rows[0];
+  const worstSku=rows[rows.length-1];
+  const avgMargem=rows.length?rows.reduce((s,r)=>s+r.margemReal,0)/rows.length:0;
+  const maxMargem=rows.length?Math.max(...rows.map(r=>r.margemReal)):0;
+
+  // Insights
+  const insights=[];
+  if(rows.length&&bestSku){
+    insights.push({tipo:'top',txt:`Variação mais lucrativa: ${bestSku.cor} ${bestSku.tamanho} com ${bestSku.margemReal.toFixed(1)}% de margem real (${fBRL(bestSku.lucRealUnit)} por peça). Priorize o estoque desta variação.`});
+  }
+  if(rows.length&&worstSku&&worstSku.margemReal<15){
+    insights.push({tipo:'alerta',txt:`${worstSku.cor} ${worstSku.tamanho} tem a menor margem: ${worstSku.margemReal.toFixed(1)}% (${fBRL(worstSku.lucRealUnit)}/peça). ${worstSku.margemReal<0?'Está vendendo no prejuízo — revise o preço ou reduza o custo.':'Avalie ajuste de preço antes da próxima reposição.'}`});
+  }
+  const tierD=rows.filter(r=>r.tier==='D');
+  if(tierD.length)insights.push({tipo:'corte',txt:`${tierD.length} variação(ões) com margem negativa: ${tierD.map(r=>`${r.cor} ${r.tamanho}`).join(', ')}. Cada peça vendida gera prejuízo — ação imediata necessária.`});
+  if(rows.length&&an){
+    const topVol=an.skuTable[0];
+    const topLuc=rows[0];
+    if(topVol&&topLuc&&(topVol.cor!==topLuc.cor||topVol.tamanho!==topLuc.tamanho)){
+      insights.push({tipo:'rep',txt:`Atenção: a variação que mais vende em volume (${topVol.cor} ${topVol.tamanho}) não é a mais lucrativa (${topLuc.cor} ${topLuc.tamanho}). Considere isso ao decidir o tamanho do próximo lote.`});
+    }
+  }
+  insights.push({tipo:'proj',txt:`Margem real média do modelo: ${avgMargem.toFixed(1)}%. Isso considera ticket médio, taxas do marketplace e custo de fabricação informado. Atualize o custo sempre que houver reajuste da costureira.`});
+
+  const TIER_INFO={A:{bg:'#EAF3DE',col:'#3B6D11',lbl:'A — Alta'},B:{bg:'#E6F1FB',col:'#185FA5',lbl:'B — Boa'},C:{bg:'#FAEEDA',col:'#854F0B',lbl:'C — Baixa'},D:{bg:'#FCEBEB',col:'#A32D2D',lbl:'D — Negativa'}};
+  const INSIGHT_ST={top:{bg:'#EAF3DE',col:'#3B6D11',ic:'↑'},alerta:{bg:'#FCEBEB',col:'#A32D2D',ic:'⚠'},corte:{bg:'#FCEBEB',col:'#A32D2D',ic:'✕'},rep:{bg:'#E6F1FB',col:'#185FA5',ic:'↺'},proj:{bg:'#F1EFE8',col:'#5F5E5A',ic:'→'}};
+
+  return React.createElement('div',null,
+    React.createElement('div',{style:{fontSize:17,fontWeight:600,marginBottom:2}},'Lucratividade por variação'),
+    React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:14}},'Margem real por SKU após taxas do marketplace e custo de fabricação.'),
+
+    // Seletor de modelo
+    React.createElement(SelModel,{models,value:selId,onChange:onSel}),
+
+    !selId&&React.createElement('div',{className:'card no-data',style:{padding:32}},'Selecione um modelo para ver a lucratividade.'),
+    selId&&!an&&React.createElement('div',{className:'card no-data',style:{padding:32}},'Sem análise carregada. Vá na aba Análise e faça upload do relatório.'),
+
+    selId&&an&&React.createElement('div',null,
+      // Aviso formato Upseller (sem lucro)
+      an.fmt==='upseller'&&React.createElement('div',{style:{fontSize:12,color:'#534AB7',marginBottom:12,padding:'10px 13px',background:'#EEEDFE',border:'1px solid #B5B3DD',borderRadius:9,lineHeight:1.6}},
+        '📦 Relatório Upseller não contém dados de lucro por variação. ',
+        React.createElement('strong',null,'A análise de lucratividade não está disponível para este formato. '),
+        'Para lucratividade completa, utilize o relatório de vendas do Mercado Livre (com colunas Lucro e Valor total).'
+      ),
+      // Aviso custo não informado
+      !an.fmt!=='upseller'&&semCusto&&React.createElement('div',{style:{fontSize:12,color:'var(--amber)',marginBottom:12,padding:'10px 13px',background:'var(--amberbg)',border:'1px solid #FAC775',borderRadius:9,lineHeight:1.6}},
+        '⚠ O custo de fabricação deste modelo não está informado. A margem real mostrada considera apenas as taxas do marketplace. ',
+        React.createElement('strong',null,'Acesse a aba Lote para informar o custo por peça.')
+      ),
+
+      // Métricas gerais
+      React.createElement('div',{className:'met-grid',style:{marginBottom:12}},
+        React.createElement(Met,{label:'Custo fabricação/peça',value:custo>0?fBRL(custo):'Não informado',sub:'Configure na aba Lote'}),
+        React.createElement(Met,{label:'Margem real média',value:`${avgMargem.toFixed(1)}%`,sub:'Após taxas + fabricação'}),
+        React.createElement(Met,{label:'Melhor variação',value:bestSku?`${bestSku.margemReal.toFixed(1)}%`:'—',sub:bestSku?`${bestSku.cor} ${bestSku.tamanho}`:''}),
+        React.createElement(Met,{label:'Pior variação',value:worstSku?`${worstSku.margemReal.toFixed(1)}%`:'—',sub:worstSku?`${worstSku.cor} ${worstSku.tamanho}`:''})
+      ),
+
+      // Insights
+      React.createElement('div',{className:'card',style:{marginBottom:12}},
+        React.createElement(SecTitle,null,'Raciocínio analítico'),
+        insights.map((ins,i)=>{const st=INSIGHT_ST[ins.tipo]||INSIGHT_ST.proj;return React.createElement('div',{key:i,className:'insight',style:{background:st.bg}},
+          React.createElement('span',{className:'insight-icon',style:{color:st.col}},st.ic),
+          React.createElement('span',{className:'insight-text'},ins.txt)
+        );})
+      ),
+
+      // Gráfico de barras de margem real
+      React.createElement('div',{className:'card',style:{marginBottom:12}},
+        React.createElement(SecTitle,null,'Margem real por variação (%)'),
+        React.createElement('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginBottom:10}},
+          Object.entries(TIER_INFO).map(([t,v])=>React.createElement('span',{key:t,className:`tier-badge tier-${t}`},v.lbl))
+        ),
+        rows.map((r,i)=>{
+          const ti=TIER_INFO[r.tier];
+          const pct=maxMargem>0?Math.max(0,r.margemReal)/maxMargem*100:0;
+          return React.createElement('div',{key:i,className:'luc-bar-wrap'},
+            React.createElement('div',{className:'luc-bar-label'},`${r.cor} · ${r.tamanho}`),
+            React.createElement('div',{className:'bar-track'},
+              r.margemReal>0
+                ?React.createElement('div',{className:'bar-fill',style:{width:`${pct}%`,background:ti.col,opacity:0.85}})
+                :React.createElement('div',{style:{height:'100%',width:'100%',background:'#FCEBEB',borderRadius:4,display:'flex',alignItems:'center',paddingLeft:6,fontSize:10,color:'#A32D2D',fontWeight:600}},'Prejuízo')
+            ),
+            React.createElement('div',{className:'luc-bar-val',style:{color:ti.col}},`${r.margemReal.toFixed(1)}%`)
+          );
+        })
+      ),
+
+      // Tabela detalhada
+      React.createElement('div',{className:'card'},
+        React.createElement(SecTitle,null,'Detalhamento por variação'),
+        React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:10,lineHeight:1.5}},
+          React.createElement('strong',null,'Ticket médio: '),'preço médio recebido por peça. ',
+          React.createElement('strong',null,'Lucro ML: '),'após taxas do marketplace, antes do custo de fabricação. ',
+          React.createElement('strong',null,'Custo fab.: '),'valor informado na aba Lote. ',
+          React.createElement('strong',null,'Lucro real: '),'Lucro ML − Custo fab. ',
+          React.createElement('strong',null,'Margem real: '),'Lucro real ÷ Ticket médio.'
+        ),
+        React.createElement('div',{style:{overflowX:'auto'}},
+          React.createElement('table',null,
+            React.createElement('thead',null,React.createElement('tr',null,
+              ...['Variação','Qtd','Ticket médio','Lucro ML/un','Custo fab./un','Lucro real/un','Margem real','Tier'].map(h=>React.createElement('th',{key:h},h))
+            )),
+            React.createElement('tbody',null,
+              rows.map((r,i)=>{
+                const ti=TIER_INFO[r.tier];
+                return React.createElement('tr',{key:i,style:{background:i%2===1?'var(--bg2)':'transparent'}},
+                  React.createElement('td',{style:{fontWeight:500,whiteSpace:'nowrap'}},`${r.cor} · ${r.tamanho}`),
+                  React.createElement('td',null,r.qty),
+                  React.createElement('td',null,fBRL(r.ticketUnit)),
+                  React.createElement('td',null,fBRL(r.lucMLUnit)),
+                  React.createElement('td',{style:{color:custo?'var(--text)':'var(--text3)'}},custo?fBRL(custo):'—'),
+                  React.createElement('td',{style:{fontWeight:600,color:r.lucRealUnit>=0?'var(--green)':'var(--red)'}},fBRL(r.lucRealUnit)),
+                  React.createElement('td',{style:{fontWeight:700,color:ti.col}},`${r.margemReal.toFixed(1)}%`),
+                  React.createElement('td',null,React.createElement('span',{className:`tier-badge tier-${r.tier}`},r.tier))
+                );
+              })
+            )
+          )
+        ),
+        React.createElement('div',{className:'reasoning-box',style:{marginTop:12}},
+          React.createElement('strong',{style:{color:'var(--text)'}},'Classificação de tiers: '),
+          React.createElement('strong',{style:{color:'#3B6D11'}},'A ≥ 30%'),': prioridade máxima de reposição. ',
+          React.createElement('strong',{style:{color:'#185FA5'}},'B 15–29%'),': boa margem, manter estoque estável. ',
+          React.createElement('strong',{style:{color:'#854F0B'}},'C 0–14%'),': baixa margem, avaliar ajuste de preço ou custo. ',
+          React.createElement('strong',{style:{color:'#A32D2D'}},'D < 0%'),': prejuízo por peça — ação imediata necessária.'
+        )
+      )
+    )
+  );
+}
+
+// ── CicloVidaView ──────────────────────────────────────────────────────
+function CicloVidaView({models,analyses,selId,onSel}){
+  const an=selId?analyses[selId]:null;
+  const fmtDate=iso=>new Date(iso).toLocaleDateString('pt-BR');
+  const fmtVar=v=>{
+    const s=v>0?'+':'';
+    return `${s}${v.toFixed(1)}%`;
+  };
+
+  // Determine phase from velVar
+  function getPhase(velVar,vel1,vel2){
+    if(vel1===0&&vel2===0)return{key:'sem_giro',lbl:'Sem giro',desc:'Nenhuma venda nos dois períodos.',color:'#5F5E5A',bg:'#F1EFE8',icon:'○'};
+    if(vel1===0&&vel2>0)return{key:'lancamento',lbl:'Lançamento',desc:'Primeiras vendas detectadas no período recente.',color:'#534AB7',bg:'#EEEDFE',icon:'✦'};
+    if(velVar>=20)return{key:'crescimento',lbl:'Crescimento',desc:'Aceleração significativa de vendas. Aumente o estoque e reforce o anúncio.',color:'#3B6D11',bg:'#EAF3DE',icon:'↑'};
+    if(velVar>=-10&&velVar<20)return{key:'maturidade',lbl:'Maturidade',desc:'Vendas estáveis. Mantenha estoque adequado e monitore margem.',color:'#185FA5',bg:'#E6F1FB',icon:'→'};
+    if(velVar>=-35&&velVar<-10)return{key:'desaceleracao',lbl:'Desaceleração',desc:'Queda moderada. Avalie promoção ou redução de lote.',color:'#854F0B',bg:'#FAEEDA',icon:'↘'};
+    return{key:'declinio',lbl:'Declínio',desc:'Queda acentuada. Considere liquidar estoque e descontinuar.',color:'#A32D2D',bg:'#FCEBEB',icon:'↓'};
+  }
+
+  // Build SKU ciclo table
+  let skuRows=[];
+  if(an&&an.skuTable){
+    skuRows=an.skuTable
+      .filter(s=>s.qty>0)
+      .map(s=>({...s,phase:getPhase(s.velVar,s.vel1,s.vel2)}))
+      .sort((a,b)=>b.velVar-a.velVar);
+  }
+
+  const modelPhase=an?getPhase(an.velVarTotal,an.vel1Total,an.vel2Total):null;
+
+  // Insights
+  const insights=[];
+  if(an&&modelPhase){
+    insights.push({tipo:modelPhase.key==='crescimento'?'top':modelPhase.key==='declinio'?'alerta':'rep',
+      txt:`Fase atual: ${modelPhase.lbl}. ${modelPhase.desc} Variação de velocidade: ${fmtVar(an.velVarTotal)} entre os dois períodos.`});
+    const acelerando=skuRows.filter(r=>r.velVar>=20);
+    const caindo=skuRows.filter(r=>r.velVar<-10);
+    if(acelerando.length)insights.push({tipo:'top',txt:`Variações em crescimento: ${acelerando.map(r=>`${r.cor} ${r.tamanho} (${fmtVar(r.velVar)})`).join(', ')}. Priorize estoque nessas combinações.`});
+    if(caindo.length)insights.push({tipo:'alerta',txt:`Variações em queda: ${caindo.map(r=>`${r.cor} ${r.tamanho} (${fmtVar(r.velVar)})`).join(', ')}. Reduza o lote de reposição ou avalie descontinuar.`});
+    const stable=skuRows.filter(r=>r.velVar>=-10&&r.velVar<20&&r.vel1>0);
+    if(stable.length)insights.push({tipo:'proj',txt:`${stable.length} variação(ões) estável(eis): ${stable.map(r=>`${r.cor} ${r.tamanho}`).join(', ')}. Mantenha reposição no ritmo atual.`});
+    insights.push({tipo:'proj',txt:`Velocidade período 1: ${an.vel1Total.toFixed(2)} un/dia → Período 2: ${an.vel2Total.toFixed(2)} un/dia. Relatório com ${an.days} dias dividido ao meio em ${fmtDate(an.midDate)}.`});
+  }
+
+  const INS_ST={top:{bg:'#EAF3DE',col:'#3B6D11',ic:'↑'},lancamento:{bg:'#EEEDFE',col:'#534AB7',ic:'✦'},alerta:{bg:'#FCEBEB',col:'#A32D2D',ic:'⚠'},rep:{bg:'#E6F1FB',col:'#185FA5',ic:'↺'},proj:{bg:'#F1EFE8',col:'#5F5E5A',ic:'→'}};
+  const maxAbsVar=skuRows.length?Math.max(1,...skuRows.map(r=>Math.abs(r.velVar))):1;
+
+  return React.createElement('div',null,
+    React.createElement('div',{style:{fontSize:17,fontWeight:600,marginBottom:2}},'Ciclo de vida do modelo'),
+    React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:14}},'Compara a velocidade de vendas entre a 1ª e 2ª metade do período analisado para identificar a fase do produto.'),
+
+    React.createElement(SelModel,{models,value:selId,onChange:onSel}),
+
+    !selId&&React.createElement('div',{className:'card no-data',style:{padding:32}},'Selecione um modelo para ver o ciclo de vida.'),
+    selId&&!an&&React.createElement('div',{className:'card no-data',style:{padding:32}},'Sem análise carregada. Vá na aba Análise e faça upload do relatório.'),
+    selId&&an&&an.fmt==='upseller'&&React.createElement('div',{style:{fontSize:12,color:'#534AB7',marginBottom:12,padding:'10px 13px',background:'#EEEDFE',border:'1px solid #B5B3DD',borderRadius:9}},
+      '📦 Relatório Upseller: dados já agregados sem datas individuais. A divisão P1/P2 é uma estimativa proporcional (50%/50%) — não reflete tendência real de vendas. Para análise de ciclo de vida precisa, use o relatório de vendas do Mercado Livre.'
+    ),
+    selId&&an&&an.days<14&&an.fmt!=='upseller'&&React.createElement('div',{style:{fontSize:12,color:'var(--amber)',marginBottom:12,padding:'10px 13px',background:'var(--amberbg)',border:'1px solid #FAC775',borderRadius:9}},
+      '⚠ O relatório tem menos de 14 dias — a divisão em dois períodos pode não ser representativa. Para análise de ciclo de vida, use relatórios de 30 a 90 dias.'
+    ),
+
+    selId&&an&&modelPhase&&React.createElement('div',null,
+
+      // Período info
+      React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:12}},
+        `Período 1: ${fmtDate(an.minDate)} → ${fmtDate(an.midDate)} (${an.p1Days}d)  ·  Período 2: ${fmtDate(an.midDate)} → ${fmtDate(an.maxDate)} (${an.p2Days}d)`
+      ),
+
+      // Fase do modelo
+      React.createElement('div',{className:'card',style:{marginBottom:12}},
+        React.createElement(SecTitle,null,'Fase atual do modelo'),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap',marginBottom:16}},
+          React.createElement('div',{className:'ciclo-phase',style:{background:modelPhase.bg,color:modelPhase.color,fontSize:15,padding:'8px 18px'}},
+            React.createElement('span',{className:'ciclo-arrow'},modelPhase.icon),
+            modelPhase.lbl
+          ),
+          React.createElement('div',{style:{fontSize:22,fontWeight:700,color:an.velVarTotal>=0?'var(--green)':'var(--red)'}},fmtVar(an.velVarTotal)),
+          React.createElement('div',{style:{fontSize:12,color:'var(--text2)',lineHeight:1.5,flex:1,minWidth:180}},modelPhase.desc)
+        ),
+        // Período comparison boxes
+        React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},
+          React.createElement('div',{className:'ciclo-period-box'},
+            React.createElement('div',{className:'ciclo-period-label'},'Período 1 · '+fmtDate(an.minDate)+' – '+fmtDate(an.midDate)),
+            React.createElement('div',{className:'ciclo-period-val'},`${an.p1TotalU} un`),
+            React.createElement('div',{className:'ciclo-period-sub'},`${an.vel1Total.toFixed(2)} un/dia`)
+          ),
+          React.createElement('div',{style:{display:'flex',alignItems:'center',fontSize:22,color:'var(--text3)',flexShrink:0}},'→'),
+          React.createElement('div',{className:'ciclo-period-box',style:{border:`1.5px solid ${modelPhase.color}40`}},
+            React.createElement('div',{className:'ciclo-period-label'},'Período 2 · '+fmtDate(an.midDate)+' – '+fmtDate(an.maxDate)),
+            React.createElement('div',{className:'ciclo-period-val',style:{color:modelPhase.color}},`${an.p2TotalU} un`),
+            React.createElement('div',{className:'ciclo-period-sub'},`${an.vel2Total.toFixed(2)} un/dia`)
+          )
+        )
+      ),
+
+      // Insights
+      React.createElement('div',{className:'card',style:{marginBottom:12}},
+        React.createElement(SecTitle,null,'Raciocínio analítico'),
+        insights.map((ins,i)=>{const st=INS_ST[ins.tipo]||INS_ST.proj;return React.createElement('div',{key:i,className:'insight',style:{background:st.bg}},
+          React.createElement('span',{className:'insight-icon',style:{color:st.col}},st.ic),
+          React.createElement('span',{className:'insight-text'},ins.txt)
+        );})
+      ),
+
+      // Variação por SKU — gráfico
+      React.createElement('div',{className:'card',style:{marginBottom:12}},
+        React.createElement(SecTitle,null,'Tendência por variação'),
+        React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap',marginBottom:12,fontSize:11}},
+          [{lbl:'↑ Crescimento ≥20%',col:'#3B6D11',bg:'#EAF3DE'},{lbl:'→ Estável −10% a +20%',col:'#185FA5',bg:'#E6F1FB'},{lbl:'↘ Desacel. −10% a −35%',col:'#854F0B',bg:'#FAEEDA'},{lbl:'↓ Declínio < −35%',col:'#A32D2D',bg:'#FCEBEB'}]
+          .map((l,i)=>React.createElement('span',{key:i,style:{background:l.bg,color:l.col,padding:'2px 9px',borderRadius:4,fontWeight:600}},l.lbl))
+        ),
+        skuRows.map((r,i)=>{
+          const ph=r.phase;
+          const barPct=Math.abs(r.velVar)/maxAbsVar*100;
+          const isPos=r.velVar>=0;
+          return React.createElement('div',{key:i,style:{marginBottom:10}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}},
+              React.createElement('div',{style:{fontSize:12,fontWeight:500,color:'var(--text)'}},`${r.cor} · ${r.tamanho}`),
+              React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                React.createElement('span',{style:{fontSize:11,color:'var(--text2)'}},`P1: ${r.vel1.toFixed(2)} → P2: ${r.vel2.toFixed(2)} un/dia`),
+                React.createElement('span',{className:'var-chip',style:{background:ph.bg,color:ph.color}},`${r.velVar>=0?'+':''}${r.velVar.toFixed(1)}%`)
+              )
+            ),
+            React.createElement('div',{style:{height:10,background:'var(--bg2)',borderRadius:5,overflow:'hidden'}},
+              React.createElement('div',{style:{height:'100%',width:`${barPct}%`,background:ph.color,borderRadius:5,opacity:0.8}})
+            )
+          );
+        })
+      ),
+
+      // Tabela detalhada
+      React.createElement('div',{className:'card'},
+        React.createElement(SecTitle,null,'Tabela detalhada'),
+        React.createElement('div',{style:{overflowX:'auto'}},
+          React.createElement('table',null,
+            React.createElement('thead',null,React.createElement('tr',null,
+              ...['Variação','P1 (un)','P2 (un)','Vel. P1','Vel. P2','Variação','Fase'].map(h=>React.createElement('th',{key:h},h))
+            )),
+            React.createElement('tbody',null,
+              skuRows.map((r,i)=>{
+                const ph=r.phase;
+                return React.createElement('tr',{key:i,style:{background:i%2===1?'var(--bg2)':'transparent'}},
+                  React.createElement('td',{style:{fontWeight:500,whiteSpace:'nowrap'}},`${r.cor} · ${r.tamanho}`),
+                  React.createElement('td',null,r.p1Qty),
+                  React.createElement('td',null,r.p2Qty),
+                  React.createElement('td',{style:{color:'var(--text2)'}},`${r.vel1.toFixed(2)}/d`),
+                  React.createElement('td',{style:{color:'var(--text2)'}},`${r.vel2.toFixed(2)}/d`),
+                  React.createElement('td',{style:{fontWeight:700,color:r.velVar>=0?'var(--green)':'var(--red)'}},fmtVar(r.velVar)),
+                  React.createElement('td',null,
+                    React.createElement('span',{className:'ciclo-phase',style:{background:ph.bg,color:ph.color,padding:'2px 9px',fontSize:11,borderRadius:20}},
+                      `${ph.icon} ${ph.lbl}`
+                    )
+                  )
+                );
+              })
+            )
+          )
+        ),
+        React.createElement('div',{className:'reasoning-box',style:{marginTop:12}},
+          React.createElement('strong',{style:{color:'var(--text)'}},'Como a fase é determinada: '),
+          'O relatório é dividido ao meio pela data. A variação % compara a velocidade (un/dia) do P2 vs P1. ',
+          React.createElement('strong',{style:{color:'#3B6D11'}},'Crescimento'),': ≥+20%. ',
+          React.createElement('strong',{style:{color:'#185FA5'}},'Maturidade'),': entre −10% e +20%. ',
+          React.createElement('strong',{style:{color:'#854F0B'}},'Desaceleração'),': entre −10% e −35%. ',
+          React.createElement('strong',{style:{color:'#A32D2D'}},'Declínio'),': abaixo de −35%. ',
+          'Para melhores resultados, use relatórios de 60 dias.'
+        )
+      )
+    )
+  );
+}
+
+// ── App ────────────────────────────────────────────────────────────────
+function App(){
+  const[view,setView]=useState('modelos');
+  const[models,setModels]=useState(()=>loadLS(LS_KEY,[]));
+  const[stocks,setStocks]=useState(()=>loadLS('gc_stocks',{}));
+  const[analyses,setAnalyses]=useState(()=>loadLS('gc_analyses',{}));
+  const[costs,setCosts]=useState(()=>loadLS('gc_costs',{}));
+  const[pedidos,setPedidos]=useState(()=>loadLS('gc_pedidos',[]));
+  const[selId,setSelId]=useState(null);
+  const[editing,setEditing]=useState(null);
+  const[upStatus,setUpStatus]=useState('');
+
+  useEffect(()=>{if(models.length&&!selId)setSelId(models[0].id);},[models]);
+
+  const saveModels=ms=>{setModels(ms);saveLS(LS_KEY,ms);};
+  const saveStock=(id,s)=>{const ns={...stocks,[id]:s};setStocks(ns);saveLS('gc_stocks',ns);};
+  const saveAnalysis=(id,a)=>{const na={...analyses,[id]:a};setAnalyses(na);saveLS('gc_analyses',na);};
+  const saveCost=(id,v)=>{const nc={...costs,[id]:v};setCosts(nc);saveLS('gc_costs',nc);};
+  const savePedido=p=>{const np=[...pedidos,p];setPedidos(np);saveLS('gc_pedidos',np);};
+  const deletePedido=id=>{const np=pedidos.filter(p=>p.id!==id);setPedidos(np);saveLS('gc_pedidos',np);};
+
+  const handleSaveModel=m=>{
+    const isNew=!m.id;const saved=isNew?{...m,id:uid()}:m;
+    saveModels(isNew?[...models,saved]:models.map(x=>x.id===saved.id?saved:x));
+    if(isNew)setSelId(saved.id);setEditing(null);
+  };
+  const handleDelete=id=>{
+    saveModels(models.filter(m=>m.id!==id));
+    if(selId===id)setSelId(models.find(m=>m.id!==id)?.id||null);
+  };
+  const handleUpload=async file=>{
+    setUpStatus('Lendo arquivo...');
+    try{
+      const rows=await readXLS(file);
+      const fmt=detectFormat(rows);
+      const fmtLabel=fmt==='upseller'?'Upseller':fmt==='mercadolivre'?'Mercado Livre':'desconhecido';
+      const rowLabel=fmt==='upseller'?'variações':'registros';
+      setUpStatus(`${rows.length} ${rowLabel} lidos (formato ${fmtLabel}). Processando...`);
+      let matched=0;
+      for(const m of models){const res=runAnalysis(rows,m,file.name);if(res){saveAnalysis(m.id,res);matched++;}}
+      const suffix=fmt==='upseller'?` · Período extraído do nome do arquivo.`:'';
+      setUpStatus(matched>0?`✓ ${matched} modelo(s) analisado(s) via ${fmtLabel}!${suffix}`:`Nenhum modelo encontrado no relatório ${fmtLabel}. Verifique o SKU ou nome nas configurações.`);
+    }catch(e){setUpStatus('Erro ao processar o arquivo. Verifique o formato e tente novamente.');}
+  };
+
+  const selModel=models.find(m=>m.id===selId);
+  const selAn=selId?analyses[selId]:null;
+  const selSt=selId?(stocks[selId]||{}):{};
+  const rep=selModel&&selAn?buildRep(selAn,selSt,selModel):[];
+  const urgCount=rep.filter(r=>r.status==='zerado'||r.status==='urgente').length;
+
+  let loteCount=0;
+  for(const m of models){const an=analyses[m.id];const st=stocks[m.id]||{};if(!an)continue;loteCount+=buildRep(an,st,m).filter(r=>r.status==='zerado'||r.status==='urgente').length;}
+
+  const TABS=[
+    {id:'modelos',lbl:'Modelos'},
+    {id:'analise',lbl:'Análise'},
+    {id:'reposicao',lbl:'Reposição',badge:urgCount},
+    {id:'lote',lbl:'Lote',badge:loteCount},
+    {id:'lucratividade',lbl:'Lucratividade'},
+    {id:'ciclo',lbl:'Ciclo de Vida'}
+  ];
+
+  return React.createElement('div',{className:'app'},
+    React.createElement('div',{className:'nav'},
+      React.createElement('div',{className:'nav-title'},'Gestão de Coleção'),
+      ...TABS.map(t=>React.createElement('button',{key:t.id,className:`nav-tab${view===t.id?' active':''}`,onClick:()=>setView(t.id)},
+        t.lbl,
+        t.badge>0&&React.createElement('span',{className:'badge-dot'},t.badge)
+      ))
+    ),
+    React.createElement('div',{className:'content'},
+      view==='modelos'&&React.createElement(ModelosView,{models,analyses,onEdit:setEditing,onDelete:handleDelete,onAdd:()=>setEditing({})}),
+      view==='analise'&&React.createElement(AnaliseView,{models,selId,onSel:setSelId,analysis:selAn,model:selModel,onUpload:handleUpload,upStatus}),
+      view==='reposicao'&&React.createElement(ReposicaoView,{models,selId,onSel:setSelId,model:selModel,analysis:selAn,stock:selSt,rep,onUpdateStock:(k,v)=>saveStock(selId,{...selSt,[k]:+v})}),
+      view==='lote'&&React.createElement(LoteView,{models,analyses,stocks,costs,onUpdateCost:saveCost,pedidos,onSavePedido:savePedido,onDeletePedido:deletePedido}),
+      view==='lucratividade'&&React.createElement(LucratividadeView,{models,analyses,costs,selId,onSel:setSelId}),
+      view==='ciclo'&&React.createElement(CicloVidaView,{models,analyses,selId,onSel:setSelId})
+    ),
+    editing!==null&&React.createElement(ModelForm,{model:editing,onSave:handleSaveModel,onClose:()=>setEditing(null)})
+  );
+}
+ReactDOM.render(React.createElement(App),document.getElementById('root'));
+</script>
+</body>
+</html>
