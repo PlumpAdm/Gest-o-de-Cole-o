@@ -414,7 +414,7 @@ function ModelosView({models,analyses,onEdit,onDelete,onAdd}){
 
 // ── ModelForm ──────────────────────────────────────────────────────────
 function ModelForm({model,onSave,onClose}){
-  const[form,setForm]=useState({name:model.name||'',skuCode:model.skuCode||'',leadTimeDays:model.leadTimeDays||15,safetyDays:model.safetyDays||7,coverageDays:model.coverageDays||30,estrategiaLote:model.estrategiaLote||'inteligente',cores:model.cores||[],tamanhos:model.tamanhos||[],id:model.id||null});
+  const[form,setForm]=useState({name:model.name||'',skuCode:model.skuCode||'',leadTimeDays:model.leadTimeDays||15,safetyDays:model.safetyDays||7,coverageDays:model.coverageDays||30,estrategiaLote:model.estrategiaLote||'inteligente',fullCoverageDays:model.fullCoverageDays||15,fullMinVel:model.fullMinVel||0.2,cores:model.cores||[],tamanhos:model.tamanhos||[],id:model.id||null});
   const[nc,setNc]=useState('');const[nt,setNt]=useState('');
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   const addC=()=>{const v=nc.trim().toUpperCase();if(v&&!form.cores.includes(v)){set('cores',[...form.cores,v]);setNc('');}};
@@ -459,6 +459,33 @@ function ModelForm({model,onSave,onClose}){
             form.estrategiaLote==='inteligente'?'Variações críticas recebem cobertura completa, outras recebem estoque mínimo para completar grade.':
             form.estrategiaLote==='full'?'TODAS as combinações cor×tamanho, mesmo sem vendas, recebem estoque mínimo.':
             'Apenas variações zeradas, urgentes ou em atenção recebem reposição.'
+          )
+        ),
+        React.createElement('div',null,
+          React.createElement('span',{className:'label'},'Configuração do Full Grade'),
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:6}},
+            React.createElement('label',null,
+              React.createElement('span',{className:'label'},'Cobertura Full (dias)'),
+              React.createElement('div',{style:{display:'flex',gap:5,flexWrap:'wrap',marginTop:4}},
+                ...[7,10,15,20,30].map(d=>React.createElement('button',{key:d,type:'button',
+                  onClick:()=>set('fullCoverageDays',d),
+                  style:{padding:'5px 0',borderRadius:7,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit',
+                    minWidth:38,flex:1,
+                    border:`2px solid ${form.fullCoverageDays===d?'var(--blue)':'var(--border)'}`,
+                    background:form.fullCoverageDays===d?'var(--bluebg)':'var(--bg2)',
+                    color:form.fullCoverageDays===d?'var(--blue)':'var(--text2)'}
+                },d+'d'))
+              ),
+              React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:4}},'Dias de estoque a manter no Full')
+            ),
+            React.createElement('label',null,
+              React.createElement('span',{className:'label'},'Vel. mín. para Full (un/dia)'),
+              React.createElement('input',{className:'input',type:'number',min:0,step:0.1,
+                value:form.fullMinVel,
+                onChange:e=>set('fullMinVel',parseFloat(e.target.value)||0),
+                style:{marginTop:4}}),
+              React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:4}},'Abaixo disso não vai para o Full')
+            )
           )
         ),
         React.createElement('div',null,
@@ -525,7 +552,7 @@ function AnaliseView({models,selId,onSel,analysis,model,onUpload,upStatus}){
         React.createElement(Met,{label:'Cores com venda',value:analysis.cores?.length||0,sub:`de ${model.cores?.length||0} cadastradas`})
       ),
       
-      // ── NOVA SEÇÃO: Aptidão para Full Grade ──
+      // ── SEÇÃO: Aptidão para Full Grade ──
       React.createElement('div',{className:'card'},
         React.createElement(SecTitle,null,'Aptidão para Full Grade'),
         (()=>{
@@ -534,41 +561,131 @@ function AnaliseView({models,selId,onSel,analysis,model,onUpload,upStatus}){
           const variacoesSemVenda=totalVariacoes-variacoesComVenda;
           const pctCobertura=(variacoesComVenda/totalVariacoes*100).toFixed(1);
           const estrategia=model.estrategiaLote||'inteligente';
-          
+          const fullMinVel=model.fullMinVel||0.2;
+          const fullCovDays=model.fullCoverageDays||15;
+
+          // Ranking de aptidão por velocidade
+          const skuRanked=(analysis.skuTable||[])
+            .filter(s=>s.qty>0)
+            .map(s=>({
+              ...s,
+              tier:s.velDay>=0.8?'A':s.velDay>=0.4?'B':'C',
+              qualifica:s.velDay>=fullMinVel,
+              fullQty:Math.max(1,Math.ceil(s.velDay*fullCovDays))
+            }))
+            .sort((a,b)=>b.velDay-a.velDay);
+
+          const qualificadas=skuRanked.filter(r=>r.qualifica);
+          const naoQualificadas=skuRanked.filter(r=>!r.qualifica);
+          const tierA=qualificadas.filter(r=>r.tier==='A');
+          const tierB=qualificadas.filter(r=>r.tier==='B');
+          const tierC=qualificadas.filter(r=>r.tier==='C');
+
+          const TIER_COLORS={
+            A:{bg:'#FCEBEB',col:'#A32D2D'},
+            B:{bg:'#FAEEDA',col:'#854F0B'},
+            C:{bg:'#E6F1FB',col:'#185FA5'}
+          };
+
           return React.createElement('div',null,
-            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:8,marginBottom:12}},
+            // Métricas de cobertura
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:8,marginBottom:14}},
               React.createElement('div',{style:{background:'var(--bg2)',borderRadius:8,padding:'10px 12px'}},
-                React.createElement('div',{style:{fontSize:10,color:'var(--text2)',marginBottom:3}},'Total de variações'),
+                React.createElement('div',{style:{fontSize:10,color:'var(--text2)',marginBottom:3}},'Grade total'),
                 React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'var(--text)'}},totalVariacoes),
-                React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:2}},`${model.cores?.length||0} cores × ${model.tamanhos?.length||0} tamanhos`)
+                React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:2}},`${model.cores?.length||0}c × ${model.tamanhos?.length||0}t`)
               ),
               React.createElement('div',{style:{background:'#EAF3DE',borderRadius:8,padding:'10px 12px'}},
-                React.createElement('div',{style:{fontSize:10,color:'#3B6D11',marginBottom:3}},'Com histórico'),
-                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#3B6D11'}},variacoesComVenda),
-                React.createElement('div',{style:{fontSize:10,color:'#3B6D11',marginTop:2}},`${pctCobertura}% da grade`)
+                React.createElement('div',{style:{fontSize:10,color:'#3B6D11',marginBottom:3}},'Aptas para Full'),
+                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#3B6D11'}},qualificadas.length),
+                React.createElement('div',{style:{fontSize:10,color:'#3B6D11',marginTop:2}},`vel. ≥ ${fullMinVel} un/dia`)
               ),
-              React.createElement('div',{style:{background:'#F1EFE8',borderRadius:8,padding:'10px 12px'}},
-                React.createElement('div',{style:{fontSize:10,color:'#5F5E5A',marginBottom:3}},'Sem histórico'),
-                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#5F5E5A'}},variacoesSemVenda),
-                React.createElement('div',{style:{fontSize:10,color:'#5F5E5A',marginTop:2}},'Serão incluídas no full')
+              React.createElement('div',{style:{background:'#FCEBEB',borderRadius:8,padding:'10px 12px'}},
+                React.createElement('div',{style:{fontSize:10,color:'#A32D2D',marginBottom:3}},'Tier A — Prioridade'),
+                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#A32D2D'}},tierA.length),
+                React.createElement('div',{style:{fontSize:10,color:'#A32D2D',marginTop:2}},'≥ 0.8 un/dia')
+              ),
+              React.createElement('div',{style:{background:'#FAEEDA',borderRadius:8,padding:'10px 12px'}},
+                React.createElement('div',{style:{fontSize:10,color:'#854F0B',marginBottom:3}},'Tier B — Bom'),
+                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#854F0B'}},tierB.length),
+                React.createElement('div',{style:{fontSize:10,color:'#854F0B',marginTop:2}},'0.4–0.8 un/dia')
+              ),
+              React.createElement('div',{style:{background:'#E6F1FB',borderRadius:8,padding:'10px 12px'}},
+                React.createElement('div',{style:{fontSize:10,color:'#185FA5',marginBottom:3}},'Tier C — Monitorar'),
+                React.createElement('div',{style:{fontSize:18,fontWeight:700,color:'#185FA5'}},tierC.length),
+                React.createElement('div',{style:{fontSize:10,color:'#185FA5',marginTop:2}},'0.2–0.4 un/dia')
               )
             ),
-            React.createElement('div',{style:{padding:'10px 12px',background:estrategia==='full'?'var(--bluebg)':'var(--bg2)',border:`1px solid ${estrategia==='full'?'#B5D4F4':'var(--border)'}`,borderRadius:8,marginBottom:10}},
+
+            // Ranking detalhado de aptidão
+            qualificadas.length>0&&React.createElement('div',{style:{marginBottom:12}},
+              React.createElement('div',{style:{fontSize:11,fontWeight:600,color:'var(--text)',marginBottom:8}},
+                `Ranking de aptidão para Full (cobertura: ${fullCovDays} dias)`
+              ),
+              React.createElement('div',{style:{overflowX:'auto'}},
+                React.createElement('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:11}},
+                  React.createElement('thead',null,
+                    React.createElement('tr',null,
+                      ...['#','Variação','Velocidade','Tier','Qtd. para Full','Qtd. vendida (60d)','% das vendas'].map(h=>
+                        React.createElement('th',{key:h,style:{textAlign:h==='#'||h==='Tier'?'center':'left',padding:'5px 7px',fontSize:9.5,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.04em',borderBottom:'1px solid var(--border)',whiteSpace:'nowrap'}},h)
+                      )
+                    )
+                  ),
+                  React.createElement('tbody',null,
+                    qualificadas.map((s,i)=>{
+                      const tc=TIER_COLORS[s.tier];
+                      return React.createElement('tr',{key:`${s.cor}${s.tamanho}`,style:{background:i%2===0?'var(--bg2)':'var(--bg)'}},
+                        React.createElement('td',{style:{textAlign:'center',padding:'6px 7px',fontWeight:700,color:'var(--text3)',fontSize:11}},i+1),
+                        React.createElement('td',{style:{padding:'6px 7px',fontWeight:600,color:'var(--text)'}},`${s.cor} · ${s.tamanho}`),
+                        React.createElement('td',{style:{padding:'6px 7px',color:'var(--text2)'}},
+                          React.createElement('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                            React.createElement('div',{style:{flex:1,height:5,background:'var(--bg3)',borderRadius:3,overflow:'hidden',minWidth:40}},
+                              React.createElement('div',{style:{height:'100%',width:`${Math.min(100,s.velDay/1.5*100)}%`,background:tc.col,borderRadius:3}})
+                            ),
+                            React.createElement('span',{style:{fontWeight:600,whiteSpace:'nowrap'}},`${s.velDay.toFixed(2)}/d`)
+                          )
+                        ),
+                        React.createElement('td',{style:{textAlign:'center',padding:'6px 5px'}},
+                          React.createElement('span',{style:{background:tc.bg,color:tc.col,fontWeight:700,fontSize:10,padding:'1px 7px',borderRadius:4}},`Tier ${s.tier}`)
+                        ),
+                        React.createElement('td',{style:{padding:'6px 7px'}},
+                          React.createElement('span',{style:{background:'#E6F1FB',color:'#185FA5',fontWeight:700,fontSize:12,padding:'2px 9px',borderRadius:5}},`${s.fullQty} un`)
+                        ),
+                        React.createElement('td',{style:{padding:'6px 7px',textAlign:'left'}},`${s.qty} un`),
+                        React.createElement('td',{style:{padding:'6px 7px',color:'var(--text2)'}},`${s.pct.toFixed(1)}%`)
+                      );
+                    })
+                  )
+                )
+              )
+            ),
+
+            // Variações que não qualificam
+            naoQualificadas.length>0&&React.createElement('div',{style:{marginBottom:12,padding:'9px 12px',background:'var(--graybg)',borderRadius:8,border:'1px solid var(--border)'}},
+              React.createElement('div',{style:{fontSize:11,fontWeight:600,color:'var(--gray)',marginBottom:5}},
+                `${naoQualificadas.length} variação(ões) não atingem vel. mínima (${fullMinVel}/dia) — ficam fora do Full:`
+              ),
+              React.createElement('div',{style:{display:'flex',gap:5,flexWrap:'wrap'}},
+                naoQualificadas.map(s=>React.createElement('span',{key:`${s.cor}${s.tamanho}`,style:{background:'var(--bg)',border:'1px solid var(--border)',color:'var(--text2)',padding:'2px 9px',borderRadius:4,fontSize:10}},
+                  `${s.cor} · ${s.tamanho} — ${s.velDay.toFixed(2)}/d`
+                ))
+              )
+            ),
+
+            // Status estratégia
+            React.createElement('div',{style:{padding:'10px 12px',background:estrategia==='full'?'var(--bluebg)':'var(--bg2)',border:`1px solid ${estrategia==='full'?'#B5D4F4':'var(--border)'}`,borderRadius:8,marginBottom:8}},
               React.createElement('div',{style:{fontSize:11,fontWeight:600,color:estrategia==='full'?'var(--blue)':'var(--text2)',marginBottom:3}},
-                estrategia==='full'?'✓ Estratégia Full Grade ativada':estrategia==='critico'?'⚠ Estratégia: Apenas Críticas':'🎯 Estratégia Inteligente ativada'
+                estrategia==='full'?'📦 Full Grade ativado':estrategia==='critico'?'⚠ Apenas Críticas':'🎯 Estratégia Inteligente'
               ),
-              React.createElement('div',{style:{fontSize:11,color:estrategia==='full'?'var(--blue)':'var(--text2)'}},
-                estrategia==='full'?`No próximo lote, todas as ${totalVariacoes} variações receberão estoque mínimo, incluindo as ${variacoesSemVenda} sem histórico de vendas.`:
-                estrategia==='critico'?`Apenas variações críticas (zerado/urgente/atenção) receberão reposição.`:
-                `Variações críticas recebem cobertura completa, outras (${variacoesComVenda} com venda) recebem estoque mínimo.`
+              React.createElement('div',{style:{fontSize:11,color:'var(--text2)'}},
+                variacoesSemVenda===0?'Grade 100% coberta com vendas — todas as variações têm histórico.':
+                variacoesSemVenda<=3?`Apenas ${variacoesSemVenda} variações sem histórico. Full Grade viável com baixo risco.`:
+                variacoesSemVenda<=8?`${variacoesSemVenda} variações sem histórico. Avalie o custo de estoque parado antes de ativar Full Grade.`:
+                `${variacoesSemVenda} variações sem histórico (${(100-parseFloat(pctCobertura)).toFixed(1)}% da grade). Use Estratégia Inteligente para evitar capital parado.`
               )
             ),
-            React.createElement('div',{style:{fontSize:11,color:'var(--text2)',lineHeight:1.6}},
-              React.createElement('strong',null,'Recomendação: '),
-              variacoesSemVenda===0?'Grade já está 100% coberta com vendas. Qualquer estratégia funcionará bem.':
-              variacoesSemVenda<=3?`Apenas ${variacoesSemVenda} variações sem histórico. Full Grade é viável com baixo risco.`:
-              variacoesSemVenda<=8?`${variacoesSemVenda} variações sem histórico. Considere Full Grade se o custo de estoque parado for aceitável.`:
-              `${variacoesSemVenda} variações sem histórico (${(100-parseFloat(pctCobertura)).toFixed(1)}% da grade). Estratégia Inteligente é mais segura para evitar estoque parado.`
+            React.createElement('div',{style:{fontSize:10,color:'var(--text3)',lineHeight:1.6}},
+              '⚙ Configure a velocidade mínima e os dias de cobertura do Full nas configurações do modelo.'
             )
           );
         })()
@@ -1042,6 +1159,130 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
               React.createElement('button',{className:'btn-primary',style:{padding:'10px 22px',fontSize:13},onClick:openForm},'📋 Registrar pedido')
             )
           ),
+
+      // ── Planejamento Full Grade ──
+      loteItens.length>0&&React.createElement('div',{className:'card',style:{marginBottom:12}},
+        (()=>{
+          const fullCovDays=selModel.fullCoverageDays||15;
+          const fullMinVel=selModel.fullMinVel||0.2;
+          // Variações qualificadas para Full (velocidade >= mínimo)
+          const fullItens=loteItens
+            .filter(r=>r.vel>=fullMinVel)
+            .map(r=>{
+              const fullQty=Math.max(1,Math.ceil(r.vel*fullCovDays));
+              const ownQty=Math.max(0,r.sugFinal-fullQty);
+              const pctFull=r.sugFinal>0?Math.round(fullQty/r.sugFinal*100):0;
+              // Tier de prioridade por velocidade
+              const tier=r.vel>=0.8?'A':r.vel>=0.4?'B':'C';
+              return{...r,fullQty,ownQty,pctFull,tier};
+            })
+            .sort((a,b)=>b.vel-a.vel);
+          const totalFull=fullItens.reduce((s,r)=>s+r.fullQty,0);
+          const totalOwn=fullItens.reduce((s,r)=>s+r.ownQty,0);
+          const totalFullInvest=totalFull*(selCusto||0);
+          const naoQualificadas=loteItens.filter(r=>r.vel<fullMinVel);
+
+          return React.createElement('div',null,
+            // Header
+            React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}},
+              React.createElement('div',null,
+                React.createElement(SecTitle,null,'Planejamento Full Grade'),
+                React.createElement('div',{style:{fontSize:11,color:'var(--text2)',marginTop:2}},
+                  `Cobertura Full: ${fullCovDays}d · Velocidade mínima: ${fullMinVel} un/dia · ${fullItens.length} variações qualificadas`
+                )
+              ),
+              React.createElement('div',{style:{display:'flex',gap:10,fontSize:11,flexWrap:'wrap'}},
+                React.createElement('span',{style:{background:'#FCEBEB',color:'#A32D2D',padding:'2px 9px',borderRadius:4,fontWeight:600}},'● Tier A ≥0.8/dia'),
+                React.createElement('span',{style:{background:'#FAEEDA',color:'#854F0B',padding:'2px 9px',borderRadius:4,fontWeight:600}},'● Tier B 0.4–0.8/dia'),
+                React.createElement('span',{style:{background:'#E6F1FB',color:'#185FA5',padding:'2px 9px',borderRadius:4,fontWeight:600}},'● Tier C <0.4/dia')
+              )
+            ),
+
+            // Métricas resumo
+            React.createElement('div',{className:'met-grid',style:{marginBottom:14}},
+              React.createElement(Met,{label:'Variações para Full',value:`${fullItens.length}`,sub:`de ${loteItens.length} no lote`}),
+              React.createElement(Met,{label:'Peças para Full',value:`${totalFull} un`,sub:`${fullCovDays}d de cobertura`}),
+              React.createElement(Met,{label:'Peças estoque próprio',value:`${totalOwn} un`,sub:'restante do lote'}),
+              React.createElement(Met,{label:'Investimento Full',value:totalFullInvest>0?fBRL(totalFullInvest):'—',sub:selCusto?`R$${selCusto}/peça`:'Informe o custo'})
+            ),
+
+            // Tabela detalhada de distribuição
+            React.createElement('div',{style:{overflowX:'auto',marginBottom:12}},
+              React.createElement('table',{style:{width:'100%',borderCollapse:'separate',borderSpacing:'0 3px'}},
+                React.createElement('thead',null,
+                  React.createElement('tr',null,
+                    ...['Variação','Vel. (un/dia)','Tier','Lote total','→ Full','→ Estoque próprio','% Full'].map(h=>
+                      React.createElement('th',{key:h,style:{textAlign:h==='Variação'?'left':'center',padding:'6px 8px',fontSize:10,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.04em',borderBottom:'1px solid var(--border)',whiteSpace:'nowrap'}},h)
+                    )
+                  )
+                ),
+                React.createElement('tbody',null,
+                  fullItens.map((r,i)=>{
+                    const tierColor={A:{bg:'#FCEBEB',col:'#A32D2D'},B:{bg:'#FAEEDA',col:'#854F0B'},C:{bg:'#E6F1FB',col:'#185FA5'}}[r.tier];
+                    return React.createElement('tr',{key:r.k,style:{background:i%2===0?'var(--bg2)':'var(--bg)'}},
+                      React.createElement('td',{style:{padding:'7px 8px',fontWeight:600,fontSize:12}},`${r.cor} · ${r.tam}`),
+                      React.createElement('td',{style:{textAlign:'center',padding:'7px 8px',fontSize:12,color:'var(--text2)'}},r.vel.toFixed(2)),
+                      React.createElement('td',{style:{textAlign:'center',padding:'7px 4px'}},
+                        React.createElement('span',{style:{background:tierColor.bg,color:tierColor.col,fontWeight:700,fontSize:11,padding:'2px 8px',borderRadius:4}},`Tier ${r.tier}`)
+                      ),
+                      React.createElement('td',{style:{textAlign:'center',padding:'7px 8px',fontSize:13,fontWeight:600}},r.sugFinal),
+                      React.createElement('td',{style:{textAlign:'center',padding:'7px 8px'}},
+                        React.createElement('div',{style:{display:'inline-block',background:'#E6F1FB',color:'#185FA5',fontWeight:800,fontSize:14,padding:'3px 10px',borderRadius:6}},r.fullQty)
+                      ),
+                      React.createElement('td',{style:{textAlign:'center',padding:'7px 8px'}},
+                        React.createElement('div',{style:{display:'inline-block',background:'#EAF3DE',color:'#3B6D11',fontWeight:800,fontSize:14,padding:'3px 10px',borderRadius:6}},r.ownQty>0?r.ownQty:'—')
+                      ),
+                      React.createElement('td',{style:{textAlign:'center',padding:'7px 8px'}},
+                        React.createElement('div',{style:{height:6,background:'var(--bg3)',borderRadius:3,overflow:'hidden',marginBottom:3,minWidth:60}},
+                          React.createElement('div',{style:{height:'100%',width:`${r.pctFull}%`,background:'#185FA5',borderRadius:3}})
+                        ),
+                        React.createElement('div',{style:{fontSize:10,color:'var(--text2)',textAlign:'center'}},`${r.pctFull}%`)
+                      )
+                    );
+                  }),
+                  // Linha de total
+                  React.createElement('tr',{style:{background:'var(--bg3)',fontWeight:700}},
+                    React.createElement('td',{style:{padding:'8px 8px',fontSize:12}},'TOTAL'),
+                    React.createElement('td',{style:{textAlign:'center',padding:'8px 8px',fontSize:11,color:'var(--text3)'}},'—'),
+                    React.createElement('td',{style:{textAlign:'center',padding:'8px 8px'}},''),
+                    React.createElement('td',{style:{textAlign:'center',padding:'8px 8px',fontSize:13}},loteItens.reduce((s,r)=>s+r.sugFinal,0)),
+                    React.createElement('td',{style:{textAlign:'center',padding:'8px 8px'}},
+                      React.createElement('div',{style:{display:'inline-block',background:'#185FA5',color:'#fff',fontWeight:800,fontSize:14,padding:'3px 10px',borderRadius:6}},totalFull)
+                    ),
+                    React.createElement('td',{style:{textAlign:'center',padding:'8px 8px'}},
+                      React.createElement('div',{style:{display:'inline-block',background:'#3B6D11',color:'#fff',fontWeight:800,fontSize:14,padding:'3px 10px',borderRadius:6}},totalOwn)
+                    ),
+                    React.createElement('td',{style:{padding:'8px 8px'}})
+                  )
+                )
+              )
+            ),
+
+            // Variações que NÃO qualificam
+            naoQualificadas.length>0&&React.createElement('div',{style:{marginBottom:12,padding:'10px 13px',background:'var(--bg2)',borderRadius:9,border:'1px solid var(--border)'}},
+              React.createElement('div',{style:{fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:4}},
+                `${naoQualificadas.length} variação(ões) abaixo da velocidade mínima (${fullMinVel} un/dia) — não vão para o Full:`
+              ),
+              React.createElement('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+                naoQualificadas.map(r=>React.createElement('span',{key:r.k,style:{background:'var(--graybg)',color:'var(--gray)',padding:'2px 9px',borderRadius:4,fontSize:11,fontWeight:500}},`${r.cor} · ${r.tam} (${r.vel.toFixed(2)}/d)`))
+              )
+            ),
+
+            // Reasoning box
+            React.createElement('div',{className:'reasoning-box'},
+              React.createElement('strong',{style:{color:'var(--text)'}},'Como o Full é calculado: '),
+              `Quantidade Full = velocidade × ${fullCovDays} dias de cobertura Full. `,
+              'Estoque próprio = Lote total − Quantidade Full. ',
+              React.createElement('strong',{style:{color:'#A32D2D'}},'Tier A (≥0.8/dia): '),
+              'prioridade máxima — alta velocidade melhora o ranking no algoritmo do ML. ',
+              React.createElement('strong',{style:{color:'#854F0B'}},'Tier B (0.4–0.8/dia): '),
+              'boa performance — envia para Full com volume adequado. ',
+              React.createElement('strong',{style:{color:'#185FA5'}},'Tier C (<0.4/dia): '),
+              'monitore — giro baixo pode comprometer o rankeamento. Ajuste a velocidade mínima nas configurações do modelo.'
+            )
+          );
+        })()
+      ),
 
       // ── Histórico do modelo ──
       pedidosModelo.length>0&&React.createElement('div',{style:{marginTop:20}},
