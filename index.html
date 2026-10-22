@@ -154,25 +154,43 @@ function extractPeriodFromFilename(filename){
   return{minDate:p(m[1]),maxDate:p(m[2])};
 }
 function normalizeSku(v){return String(v||'').replace(/^0+/,'');}
-
-// Extrai cor e tamanho do nome do produto quando não há coluna Variantes
-function extractFromProductName(productName, modelCores, modelTamanhos){
-  const upper=String(productName||'').toUpperCase();
-  let cor=null,tamanho=null;
-  // Tamanho: word boundary para evitar falsos positivos
-  for(const tam of modelTamanhos){
-    const t=tam.toUpperCase().replace(/-/g,' ');
-    const re=new RegExp('\\b'+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
-    if(re.test(upper)){tamanho=t;break;}
+function importEstoqueFromRows(rows,model){
+  if(!rows||!rows.length)return null;
+  const modelCores=model.cores||[];
+  const modelTamanhos=model.tamanhos||[];
+  const skuCode=normalizeSku(model.skuCode||'');
+  const kw=(model.keyword||model.name||'').toUpperCase();
+  // Detecta coluna de estoque (vários nomes possíveis no Upseller)
+  const firstKeys=Object.keys(rows[0]||{});
+  const stockCol=firstKeys.find(k=>/^(estoque|quantidade|qtde?|saldo|disponível|estoque\s*disponível|estoque\s*atual|qtd\.?\s*total)$/i.test(k.trim()))||null;
+  if(!stockCol)return null;
+  // Filtra linhas do modelo
+  const filtered=rows.filter(r=>{
+    const skuP=normalizeSku(r['SKU Principal']||'');
+    const sku=normalizeSku(r['SKU']||'');
+    // Suporta "Título" (Lista de Estoque) além de "Produtos"/"Produto" (Vendas por Variante)
+    const titulo=String(r['Título']||'');
+    // Para SKU, extrai parte antes do espaço no Título se necessário
+    const produto=String(r['Produtos']||r['Produto']||titulo).toUpperCase();
+    if(skuCode)return skuP===skuCode||sku===skuCode||sku.startsWith(skuCode)||skuP.startsWith(skuCode);
+    return kw&&produto.includes(kw);
+  });
+  if(!filtered.length)return null;
+  const result={};
+  for(const row of filtered){
+    const qty=pNum(row[stockCol]);
+    if(qty<=0)continue;
+    // Extrai variante da coluna Variantes/Variante OU do campo Título: "PRODUTO ( COR, TAMANHO )"
+    let varStr=String(row['Variantes']||row['Variante']||'');
+    if(!varStr){
+      const tit=String(row['Título']||'');
+      const mt=tit.match(/\(([^)]+)\)/);
+      if(mt)varStr=mt[1].trim(); // ex: "BEGE, GG" — parseVariantes já trata vírgula como separador
+    }
+    const{cor,tamanho}=parseVariantes(varStr,modelCores,modelTamanhos);
+    if(cor&&tamanho){const k=`${cor}||${tamanho}`;result[k]=(result[k]||0)+qty;}
   }
-  // Cor: substring (suporta cores com espaço como "Marrom Escuro")
-  // Ordena pela mais longa para dar prioridade a "Marrom Escuro" vs "Marrom"
-  const coresSorted=[...modelCores].sort((a,b)=>b.length-a.length);
-  for(const c of coresSorted){
-    const cu=c.toUpperCase().replace(/-/g,' ');
-    if(upper.includes(cu)){cor=cu;break;}
-  }
-  return{cor,tamanho};
+  return Object.keys(result).length?result:null;
 }
 // Largest Remainder Method — garante soma exata sem perda de arredondamento
 function distribuirProporcional(qty,rec,dist){
@@ -213,21 +231,9 @@ function runAnalysisUpseller(rows,model,filename){
   let skippedUnits=0;
   for(const row of filtered){
     const qty=pNum(row['Unidades Vendidas']);
-    // Suporta 'Pagamentos Recebidos' (Por Variante) e 'Valor de Vendas' (Por Produto)
-    const rec=pNum(row['Pagamentos Recebidos']||row['Valor de Vendas']||0);
-    let{cor,tamanho,completo}=parseVariantes(row['Variantes'],modelCores,modelTamanhos);
-    // Fallback: extrair cor/tamanho do nome do produto (formato Vendas_por_Produtos)
-    if(!cor&&!tamanho){
-      const fromName=extractFromProductName(row['Produtos'],modelCores,modelTamanhos);
-      cor=fromName.cor;tamanho=fromName.tamanho;
-      completo=!!(cor&&tamanho);
-    }
-    if(!cor&&!tamanho){
-      // Linha agregada (ex: Shopee sem variante) → redistribuir entre todas as variações
-      if(qty>0)incompleteRows.push({cor:null,tamanho:null,qty,rec});
-      else skippedUnits+=qty;
-      continue;
-    }
+    const rec=pNum(row['Pagamentos Recebidos']||row['Valor de Vendas']);
+    const{cor,tamanho,completo}=parseVariantes(row['Variantes'],modelCores,modelTamanhos);
+    if(!cor&&!tamanho){skippedUnits+=qty;continue;}
     if(completo)completeRows.push({cor,tamanho,qty,rec});
     else incompleteRows.push({cor,tamanho,qty,rec});
   }
@@ -273,26 +279,6 @@ function runAnalysisUpseller(rows,model,filename){
         redistributedUnits+=item.qty;
       }
     }else if(agg.qty>0){allRows.push({cor:'SEM_COR',tamanho:tam,qty:agg.qty,rec:agg.rec});redistributedUnits+=agg.qty;}
-  }
-  // Redistribuir linhas anônimas (cor=null E tamanho=null — ex: Shopee agregado)
-  const groupAnon={qty:0,rec:0};
-  for(const r of incompleteRows){
-    if(!r.cor&&!r.tamanho&&r.qty>0){groupAnon.qty+=r.qty;groupAnon.rec+=r.rec;}
-  }
-  if(groupAnon.qty>0){
-    // Distribuir proporcionalmente entre todas as variações completas conhecidas
-    const allKnownDist={};
-    for(const r of completeRows){
-      const k=`${r.cor}||${r.tamanho}`;
-      allKnownDist[k]=(allKnownDist[k]||0)+r.qty;
-    }
-    if(Object.keys(allKnownDist).length>0){
-      for(const item of distribuirProporcional(groupAnon.qty,groupAnon.rec,allKnownDist)){
-        const[cor,tamanho]=item.key.split('||');
-        allRows.push({cor,tamanho,qty:item.qty,rec:item.rec});
-        redistributedUnits+=item.qty;
-      }
-    }else{skippedUnits+=groupAnon.qty;}
   }
   if(!allRows.length)return null;
 
@@ -896,7 +882,7 @@ function AnaliseView({models,selId,onSel,analysis,model,onUpload,upStatus}){
 }
 
 // ── ReposicaoView ──────────────────────────────────────────────────────
-function ReposicaoView({models,selId,onSel,model,analysis,stock,rep,onUpdateStock}){
+function ReposicaoView({models,selId,onSel,model,analysis,stock,rep,onUpdateStock,onImportEstoque,importStatus}){
   const[editing,setEditing]=useState(false);
   const urgentes=rep.filter(r=>r.status==='zerado'||r.status==='urgente');
   const atencao=rep.filter(r=>r.status==='atencao');
@@ -909,8 +895,18 @@ function ReposicaoView({models,selId,onSel,model,analysis,stock,rep,onUpdateStoc
   const statusColor={zerado:'#FAC775',urgente:'#FAC775',atencao:'#B5D4F4',ok:'var(--border)',sem_giro:'var(--border)'};
 
   return React.createElement('div',null,
-    React.createElement('div',{style:{fontSize:17,fontWeight:600,marginBottom:2}},'Cronograma de reposição'),
-    React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:14}},'Controle o estoque atual e saiba exatamente quando pedir cada variação.'),
+    React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginBottom:2}},
+      React.createElement('div',{style:{fontSize:17,fontWeight:600}},'Cronograma de reposição'),
+      React.createElement('label',{
+        style:{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',color:'var(--text)',fontSize:12,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap',lineHeight:'1.4'},
+        title:'Importe a "Lista de Estoque" exportada do Upseller para preencher o estoque automaticamente'
+      },
+        '📥 Importar estoque Upseller',
+        React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',style:{display:'none'},onChange:e=>{if(e.target.files[0]){onImportEstoque(e.target.files[0]);e.target.value='';}}})
+      )
+    ),
+    React.createElement('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:importStatus?6:14}},'Controle o estoque atual e saiba exatamente quando pedir cada variação.'),
+    importStatus&&React.createElement('div',{style:{fontSize:12,padding:'8px 12px',borderRadius:8,marginBottom:12,background:importStatus.startsWith('✓')?'#EAF3DE':importStatus.startsWith('Erro')||importStatus.startsWith('Arquivo')||importStatus.startsWith('Nenhum')?'#FCEBEB':'var(--bg2)',color:importStatus.startsWith('✓')?'#3B6D11':importStatus.startsWith('Erro')||importStatus.startsWith('Arquivo')||importStatus.startsWith('Nenhum')?'#A32D2D':'var(--text2)',border:`1px solid ${importStatus.startsWith('✓')?'#B8D99A':importStatus.startsWith('Erro')||importStatus.startsWith('Arquivo')||importStatus.startsWith('Nenhum')?'#F5C6C6':'var(--border)'}`}},importStatus),
     React.createElement(SelModel,{models,value:selId,onChange:id=>{onSel(id);setEditing(false);}}),
     !selId&&React.createElement('div',{className:'card no-data'},'Selecione um modelo para ver o cronograma.'),
     selId&&!analysis&&React.createElement('div',{className:'card no-data'},'Sem análise disponível. Faça upload de um relatório na aba Análise primeiro.'),
@@ -1081,10 +1077,9 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
           const ld=selModel.leadTimeDays||15;
           const sd=selModel.safetyDays||7;
           
-          // coverageDays para todos — sem venda recebe mínimo 1 peça
-          const cov=selModel.coverageDays||30;
-          const tipoCalculo=isCritico?'cobertura':'grade';
-          const sugFinal=repItem?repItem.sug:Math.max(1,Math.ceil(vel*cov)||1);
+          // Se crítico: cobertura. Senão: mínimo (mesmo sem venda = 1 peça)
+          const tipoCalculo=isCritico?'cobertura':'minimo';
+          const sugFinal=isCritico?(repItem?repItem.sug:1):Math.max(1,Math.ceil(vel*(ld+sd))||1);
           
           return{
             cor,tam,k,
@@ -1096,12 +1091,12 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
             tipoCalculo,
             sugFinal,
             sugOriginal:repItem?repItem.sug:1,
-            diasCalculo:repItem?repItem.covDays:cov,
+            diasCalculo:isCritico?(repItem?repItem.covDays:30):(ld+sd),
             sold:repItem?repItem.sold:0,
             dLeft:repItem?repItem.dLeft:null,
             rop:repItem?repItem.rop:0,
             sug:repItem?repItem.sug:1,
-            covDays:repItem?repItem.covDays:cov
+            covDays:repItem?repItem.covDays:(ld+sd)
           };
         }))
       :estrategia==='critico'
@@ -1119,16 +1114,15 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
           const ld=selModel.leadTimeDays||15;
           const sd=selModel.safetyDays||7;
           
-          // coverageDays é a fonte única — crítico=prioridade, grade=complemento
-          const tipoCalculo=isCritico?'cobertura':'grade';
-          const sugFinal=r.sug;
+          const tipoCalculo=isCritico?'cobertura':'minimo';
+          const sugFinal=isCritico?r.sug:Math.max(1,Math.ceil(r.vel*(ld+sd)));
           
           return{
             ...r,
             tipoCalculo,
             sugFinal,
             sugOriginal:r.sug,
-            diasCalculo:r.covDays
+            diasCalculo:isCritico?r.covDays:(ld+sd)
           };
         })
   ):[];
@@ -1241,7 +1235,7 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
                     )
                   :React.createElement(React.Fragment,null,
                       React.createElement('span',{style:{color:'var(--amber)',fontWeight:600}},'▮ Crítico (cobertura)'),
-                      React.createElement('span',{style:{color:'#3B6D11',fontWeight:600}},`▮ Grade (${selModel.coverageDays||30}d)`),
+                      React.createElement('span',{style:{color:'#3B6D11',fontWeight:600}},'▮ Mínimo saudável'),
                       React.createElement('span',{style:{color:'#534AB7',fontWeight:600}},'N = Nova')
                     )
               )
@@ -1275,7 +1269,7 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
                           React.createElement('div',{style:{padding:'6px 4px',borderRadius:8,border:`2px solid ${bc}`,background:`${bc}22`,position:'relative'}},
                             React.createElement('div',{style:{fontSize:16,fontWeight:800,color:'var(--text)',lineHeight:1.1}},`${r.sugFinal}`),
                             React.createElement('div',{style:{fontSize:10,color:'var(--text3)',marginTop:2}},`${r.vel.toFixed(2)}/d`),
-                            React.createElement('span',{className:'status-badge',style:{background:isCritico?STATUS[r.status]?.bg:'#EAF3DE',color:isCritico?STATUS[r.status]?.col:'#3B6D11',fontSize:9,padding:'1px 5px',marginTop:3,display:'block'}},isCritico?STATUS[r.status]?.lbl:`Grade ${r.diasCalculo}d`),
+                            React.createElement('span',{className:'status-badge',style:{background:isCritico?STATUS[r.status]?.bg:'#EAF3DE',color:isCritico?STATUS[r.status]?.col:'#3B6D11',fontSize:9,padding:'1px 5px',marginTop:3,display:'block'}},isCritico?STATUS[r.status]?.lbl:`Min ${r.diasCalculo}d`),
                             r.isNew&&React.createElement('span',{style:{position:'absolute',top:0,right:0,fontSize:8,fontWeight:800,background:'#534AB7',color:'#fff',borderRadius:'0 6px 0 4px',padding:'0 3px',lineHeight:'14px'}},'N')
                           )
                         );
@@ -1860,6 +1854,7 @@ function App(){
   const[selId,setSelId]=useState(null);
   const[editing,setEditing]=useState(null);
   const[upStatus,setUpStatus]=useState('');
+  const[importStatus,setImportStatus]=useState('');
 
   useEffect(()=>{if(models.length&&!selId)setSelId(models[0].id);},[models]);
 
@@ -1869,6 +1864,27 @@ function App(){
   const saveCost=(id,v)=>{const nc={...costs,[id]:v};setCosts(nc);saveLS('gc_costs',nc);};
   const savePedido=p=>{const np=[...pedidos,p];setPedidos(np);saveLS('gc_pedidos',np);};
   const deletePedido=id=>{const np=pedidos.filter(p=>p.id!==id);setPedidos(np);saveLS('gc_pedidos',np);};
+
+  const handleImportEstoque=async file=>{
+    setImportStatus('Lendo arquivo...');
+    try{
+      const rows=await readXLS(file);
+      let matched=0,varCount=0;
+      const newStocks={...stocks};
+      for(const m of models){
+        const res=importEstoqueFromRows(rows,m);
+        if(res){newStocks[m.id]={...(newStocks[m.id]||{}),...res};varCount+=Object.keys(res).length;matched++;}
+      }
+      if(matched>0){setStocks(newStocks);saveLS('gc_stocks',newStocks);setImportStatus(`✓ Estoque importado: ${varCount} variação(ões) em ${matched} modelo(s).`);}
+      else{
+        const firstKeys=rows.length?Object.keys(rows[0]):[];
+        const temVariantes=firstKeys.some(k=>k==='Variantes'||k==='Variante');
+        const semColunaEstoque=!firstKeys.some(k=>/estoque|quantidade|qtde?|saldo|disponível/i.test(k));
+        if(semColunaEstoque)setImportStatus('Arquivo sem coluna de estoque. Exporte a "Lista de Estoque" do Upseller (não "Vendas por Variante").');
+        else setImportStatus('Nenhum modelo encontrado. Verifique se o nome do produto no cadastro (keyword) aparece no campo "Título" da Lista de Estoque, ou se o SKU cadastrado é prefixo do SKU das variantes.');
+      }
+    }catch(e){setImportStatus('Erro ao ler o arquivo. Verifique o formato e tente novamente.');}
+  };
 
   const handleSaveModel=m=>{
     const isNew=!m.id;const saved=isNew?{...m,id:uid()}:m;
@@ -1928,7 +1944,7 @@ function App(){
     React.createElement('div',{className:'content'},
       view==='modelos'&&React.createElement(ModelosView,{models,analyses,onEdit:setEditing,onDelete:handleDelete,onAdd:()=>setEditing({})}),
       view==='analise'&&React.createElement(AnaliseView,{models,selId,onSel:setSelId,analysis:selAn,model:selModel,onUpload:handleUpload,upStatus}),
-      view==='reposicao'&&React.createElement(ReposicaoView,{models,selId,onSel:setSelId,model:selModel,analysis:selAn,stock:selSt,rep,onUpdateStock:(k,v)=>saveStock(selId,{...selSt,[k]:+v})}),
+      view==='reposicao'&&React.createElement(ReposicaoView,{models,selId,onSel:setSelId,model:selModel,analysis:selAn,stock:selSt,rep,onUpdateStock:(k,v)=>saveStock(selId,{...selSt,[k]:+v}),onImportEstoque:handleImportEstoque,importStatus}),
       view==='lote'&&React.createElement(LoteView,{models,analyses,stocks,costs,onUpdateCost:saveCost,pedidos,onSavePedido:savePedido,onDeletePedido:deletePedido}),
       view==='lucratividade'&&React.createElement(LucratividadeView,{models,analyses,costs,selId,onSel:setSelId}),
       view==='ciclo'&&React.createElement(CicloVidaView,{models,analyses,selId,onSel:setSelId})
