@@ -197,13 +197,23 @@ function distribuirProporcional(qty,rec,dist){
   const tot=Object.values(dist).reduce((s,v)=>s+v,0);
   if(!tot)return[];
   const items=Object.entries(dist).map(([key,v])=>({
-    key,floor:Math.floor(qty*v/tot),remainder:(qty*v/tot)%1,recExact:rec*v/tot
+    key,floor:Math.floor(qty*v/tot),remainder:(qty*v/tot)%1
   }));
   const allocated=items.reduce((s,i)=>s+i.floor,0);
   let remaining=qty-allocated;
   items.sort((a,b)=>b.remainder-a.remainder);
   for(let i=0;i<remaining;i++)items[i].floor+=1;
-  return items.filter(i=>i.floor>0).map(i=>({key:i.key,qty:i.floor,rec:Math.round(i.recExact*100)/100}));
+  // Distribui rec proporcional às unidades ALOCADAS (não à dist original)
+  // Garante que toda a receita seja preservada mesmo quando qty < total de tamanhos
+  const active=items.filter(i=>i.floor>0);
+  const totalFloor=active.reduce((s,i)=>s+i.floor,0);
+  let recLeft=rec;
+  return active.map((item,idx)=>{
+    let r;
+    if(idx===active.length-1){r=Math.round(recLeft*100)/100;}
+    else{r=Math.round(rec*item.floor/totalFloor*100)/100;recLeft-=r;}
+    return{key:item.key,qty:item.floor,rec:r};
+  });
 }
 
 function runAnalysisUpseller(rows,model,filename){
