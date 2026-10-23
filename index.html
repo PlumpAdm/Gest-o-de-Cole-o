@@ -162,7 +162,10 @@ function importEstoqueFromRows(rows,model){
   const kw=(model.keyword||model.name||'').toUpperCase();
   // Detecta coluna de estoque (vários nomes possíveis no Upseller)
   const firstKeys=Object.keys(rows[0]||{});
-  const stockCol=firstKeys.find(k=>/^(estoque|quantidade|qtde?|saldo|disponível|estoque\s*disponível|estoque\s*atual|qtd\.?\s*total)$/i.test(k.trim()))||null;
+  // Prioridade: "Estoque Atual" (inclui Ocupado) > "Disponível" > outros
+  const stockCol=firstKeys.find(k=>/^estoque\s*atual$/i.test(k.trim()))
+    ||firstKeys.find(k=>/^(estoque|quantidade|qtde?|saldo|disponível|estoque\s*disponível|qtd\.?\s*total)$/i.test(k.trim()))
+    ||null;
   if(!stockCol)return null;
   // Filtra linhas do modelo
   const filtered=rows.filter(r=>{
@@ -179,7 +182,8 @@ function importEstoqueFromRows(rows,model){
   const result={};
   for(const row of filtered){
     const qty=pNum(row[stockCol]);
-    if(qty<=0)continue;
+    // Não pular qty=0: precisa zerar estoque de variantes que zeraram no Upseller,
+    // caso contrário o valor anterior no localStorage persiste (ex: 34 vira 0)
     // Extrai variante da coluna Variantes/Variante OU do campo Título: "PRODUTO ( COR, TAMANHO )"
     let varStr=String(row['Variantes']||row['Variante']||'');
     if(!varStr){
