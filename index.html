@@ -1077,10 +1077,10 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
           const ld=selModel.leadTimeDays||15;
           const sd=selModel.safetyDays||7;
           
-          // Se crítico: cobertura. Senão: mínimo (mesmo sem venda = 1 peça)
+          // Usa r.sug do buildRep (já reflete coverageDays) para críticos e não-críticos
           const tipoCalculo=isCritico?'cobertura':'minimo';
-          const sugFinal=isCritico?(repItem?repItem.sug:1):Math.max(1,Math.ceil(vel*(ld+sd))||1);
-          
+          const sugFinal=repItem?(repItem.sug||1):1;
+
           return{
             cor,tam,k,
             vel,
@@ -1091,7 +1091,7 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
             tipoCalculo,
             sugFinal,
             sugOriginal:repItem?repItem.sug:1,
-            diasCalculo:isCritico?(repItem?repItem.covDays:30):(ld+sd),
+            diasCalculo:repItem?repItem.covDays:(ld+sd),
             sold:repItem?repItem.sold:0,
             dLeft:repItem?repItem.dLeft:null,
             rop:repItem?repItem.rop:0,
@@ -1115,14 +1115,14 @@ function LoteView({models,analyses,stocks,costs,onUpdateCost,pedidos,onSavePedid
           const sd=selModel.safetyDays||7;
           
           const tipoCalculo=isCritico?'cobertura':'minimo';
-          const sugFinal=isCritico?r.sug:Math.max(1,Math.ceil(r.vel*(ld+sd)));
-          
+          const sugFinal=r.sug||Math.max(1,Math.ceil(r.vel*(ld+sd)));
+
           return{
             ...r,
             tipoCalculo,
             sugFinal,
             sugOriginal:r.sug,
-            diasCalculo:isCritico?r.covDays:(ld+sd)
+            diasCalculo:r.covDays
           };
         })
   ):[];
