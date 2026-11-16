@@ -448,16 +448,19 @@ function buildRep(analysis,stock,model){
   const ld=model.leadTimeDays||15,sd=model.safetyDays||7;
 
   // Build a velocity map from skuTable (uses activeDays-corrected velocity)
+  // Normaliza hífens→espaços para alinhar com parseVariantes ("OFF-WHITE" = "OFF WHITE")
+  const normK=s=>String(s||'').replace(/-/g,' ').toUpperCase().replace(/\s+/g,' ').trim();
   const velMap={};
-  (skuTable||[]).forEach(s=>{velMap[`${s.cor}||${s.tamanho}`]=s;});
+  (skuTable||[]).forEach(s=>{velMap[`${normK(s.cor)}||${normK(s.tamanho)}`]=s;});
 
   return(model.cores||[]).flatMap(cor=>(model.tamanhos||[]).map(tam=>{
     const k=`${cor}||${tam}`;
-    const skuData=velMap[k];
+    const kn=`${normK(cor)}||${normK(tam)}`;
+    const skuData=velMap[k]||velMap[kn];
     const vel=skuData?skuData.velDay:0;
     const isNew=skuData?skuData.isNew:false;
     const activeDays=skuData?skuData.activeDays:days;
-    const curr=+(stock[k]||0);
+    const curr=+(stock[k]||stock[kn]||0);
 
     // Coverage: use model setting; new SKUs get half (conservative)
     const baseCov=model.coverageDays||30;
@@ -565,7 +568,7 @@ function ModelForm({model,onSave,onClose}){
   const[form,setForm]=useState({name:model.name||'',skuCode:model.skuCode||'',leadTimeDays:model.leadTimeDays||15,safetyDays:model.safetyDays||7,coverageDays:model.coverageDays||30,estrategiaLote:model.estrategiaLote||'inteligente',fullCoverageDays:model.fullCoverageDays||15,fullMinVel:model.fullMinVel||0.2,cores:model.cores||[],tamanhos:model.tamanhos||[],id:model.id||null});
   const[nc,setNc]=useState('');const[nt,setNt]=useState('');
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const addC=()=>{const v=nc.trim().toUpperCase();if(v&&!form.cores.includes(v)){set('cores',[...form.cores,v]);setNc('');}};
+  const addC=()=>{const v=nc.trim().replace(/-/g,' ').replace(/\s+/g,' ').toUpperCase();if(v&&!form.cores.includes(v)){set('cores',[...form.cores,v]);setNc('');}};
   const addT=()=>{const v=nt.trim().toUpperCase();if(v&&!form.tamanhos.includes(v)){set('tamanhos',[...form.tamanhos,v]);setNt('');}};
   const save=()=>{if(!form.name.trim()){alert('Informe o nome do modelo');return;}onSave(form);};
   return React.createElement('div',{className:'modal-overlay',onClick:e=>{if(e.target===e.currentTarget)onClose();}},
