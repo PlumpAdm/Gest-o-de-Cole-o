@@ -703,7 +703,21 @@ function AnaliseView({models,selId,onSel,analysis,model,onUpload,upStatus}){
             React.createElement('strong',null,`⚠ ${analysis.skippedUnits} unidades descartadas: `),
             'linhas com campo Variantes vazio ou nulo — sem informação suficiente para atribuir.'
           )
-        )
+        ),
+        (()=>{
+          // Cores encontradas nos dados que NÃO estão cadastradas no modelo
+          const norm=s=>s.replace(/-/g,' ').toUpperCase().trim();
+          const registradas=new Set((model.cores||[]).map(norm));
+          const naoReg=(analysis.cores||[]).filter(([c])=>!registradas.has(norm(c)));
+          if(!naoReg.length)return null;
+          const totalNaoReg=naoReg.reduce((s,[,q])=>s+q,0);
+          return React.createElement('div',{style:{marginTop:7,padding:'6px 10px',background:'rgba(163,45,45,0.1)',borderRadius:6,border:'1px solid rgba(163,45,45,0.25)'}},
+            React.createElement('strong',{style:{color:'#A32D2D'}},`⚠ ${totalNaoReg} unidades de cor(es) não cadastrada(s) no modelo: `),
+            naoReg.map(([c,q])=>`${c} (${q} un)`).join(', '),
+            '. ',
+            React.createElement('strong',null,'Adicione ao cadastro do modelo para incluir na Reposição e no Lote.')
+          );
+        })()
       ),
       React.createElement('div',{className:'met-grid'},
         React.createElement(Met,{label:'Total vendido',value:`${analysis.totalU} un`,sub:`${analysis.dailyAvg?.toFixed(2)} un/dia`}),
